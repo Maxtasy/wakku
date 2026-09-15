@@ -1,20 +1,32 @@
 package com.maxtasy.wakku
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.maxtasy.wakku.alarms.AlarmEditScreen
+import com.maxtasy.wakku.alarms.AlarmEditViewModel
+import com.maxtasy.wakku.alarms.AlarmListScreen
+import com.maxtasy.wakku.alarms.AlarmListViewModel
+import com.maxtasy.wakku.data.AlarmDao
 import com.maxtasy.wakku.ui.theme.WakkuTheme
+
+private const val NEW_ALARM_ID = -1L
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,25 +34,60 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             WakkuTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AlarmListScreen(modifier = Modifier.padding(innerPadding))
-                }
+                WakkuApp(modifier = Modifier.fillMaxSize())
             }
         }
     }
 }
 
-/**
- * Placeholder for the alarm list (Milestone 1). Shows the empty state until
- * alarms can actually be created.
- */
+private val Context.alarmDao: AlarmDao
+    get() = (applicationContext as WakkuApplication).database.alarmDao()
+
 @Composable
-fun AlarmListScreen(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "No alarms yet.",
-                style = MaterialTheme.typography.titleMedium
+fun WakkuApp(modifier: Modifier = Modifier) {
+    val navController = rememberNavController()
+    val alarmDao = LocalContext.current.alarmDao
+
+    NavHost(navController = navController, startDestination = "alarms", modifier = modifier) {
+        composable("alarms") {
+            val viewModel: AlarmListViewModel = viewModel(
+                factory = viewModelFactory { initializer { AlarmListViewModel(alarmDao) } },
+            )
+            val alarms by viewModel.alarms.collectAsStateWithLifecycle()
+            AlarmListScreen(
+                alarms = alarms,
+                onToggle = viewModel::setEnabled,
+                onOpenAlarm = { id -> navController.navigate("alarm/${id ?: NEW_ALARM_ID}") },
+            )
+        }
+        composable(
+            route = "alarm/{alarmId}",
+            arguments = listOf(navArgument("alarmId") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val alarmId = backStackEntry.arguments?.getLong("alarmId") ?: NEW_ALARM_ID
+            val editingId = alarmId.takeIf { it != NEW_ALARM_ID }
+            val viewModel: AlarmEditViewModel = viewModel(
+                factory = viewModelFactory { initializer { AlarmEditViewModel(alarmDao, editingId) } },
+            )
+            val state by viewModel.state.collectAsStateWithLifecycle()
+            AlarmEditScreen(
+                hour = state.hour,
+                minute = state.minute,
+                repeatDays = state.repeatDays,
+                label = state.label,
+                isNew = editingId == null,
+                onTimeChange = viewModel::setTime,
+                onDaysChange = viewModel::setDays,
+                onLabelChange = viewModel::setLabel,
+                onSave = {
+                    viewModel.save()
+                    navController.popBackStack()
+                },
+                onDelete = {
+                    viewModel.delete()
+                    navController.popBackStack()
+                },
+                onBack = { navController.popBackStack() },
             )
         }
     }
