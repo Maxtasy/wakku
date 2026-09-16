@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maxtasy.wakku.data.Alarm
 import com.maxtasy.wakku.data.AlarmDao
+import com.maxtasy.wakku.scheduling.AlarmScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,7 @@ data class AlarmEditState(
 
 class AlarmEditViewModel(
     private val alarmDao: AlarmDao,
+    private val alarmScheduler: AlarmScheduler,
     private val alarmId: Long?,
 ) : ViewModel() {
 
@@ -56,7 +58,7 @@ class AlarmEditViewModel(
         val current = _state.value
         viewModelScope.launch {
             val existing = alarmId?.let { alarmDao.getById(it) }
-            alarmDao.upsert(
+            val savedId = alarmDao.upsert(
                 Alarm(
                     id = alarmId ?: 0,
                     hour = current.hour,
@@ -66,13 +68,17 @@ class AlarmEditViewModel(
                     enabled = existing?.enabled ?: true,
                 )
             )
+            alarmDao.getById(savedId)?.let { alarmScheduler.schedule(it) }
         }
     }
 
     fun delete() {
         val id = alarmId ?: return
         viewModelScope.launch {
-            alarmDao.getById(id)?.let { alarmDao.delete(it) }
+            alarmDao.getById(id)?.let { alarm ->
+                alarmDao.delete(alarm)
+                alarmScheduler.cancel(alarm)
+            }
         }
     }
 }

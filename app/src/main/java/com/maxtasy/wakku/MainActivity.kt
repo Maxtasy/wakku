@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -24,6 +25,7 @@ import com.maxtasy.wakku.alarms.AlarmEditViewModel
 import com.maxtasy.wakku.alarms.AlarmListScreen
 import com.maxtasy.wakku.alarms.AlarmListViewModel
 import com.maxtasy.wakku.data.AlarmDao
+import com.maxtasy.wakku.scheduling.AlarmScheduler
 import com.maxtasy.wakku.ui.theme.WakkuTheme
 
 private const val NEW_ALARM_ID = -1L
@@ -46,12 +48,14 @@ private val Context.alarmDao: AlarmDao
 @Composable
 fun WakkuApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
-    val alarmDao = LocalContext.current.alarmDao
+    val context = LocalContext.current
+    val alarmDao = context.alarmDao
+    val alarmScheduler = remember(context) { AlarmScheduler(context.applicationContext) }
 
     NavHost(navController = navController, startDestination = "alarms", modifier = modifier) {
         composable("alarms") {
             val viewModel: AlarmListViewModel = viewModel(
-                factory = viewModelFactory { initializer { AlarmListViewModel(alarmDao) } },
+                factory = viewModelFactory { initializer { AlarmListViewModel(alarmDao, alarmScheduler) } },
             )
             val alarms by viewModel.alarms.collectAsStateWithLifecycle()
             AlarmListScreen(
@@ -67,7 +71,7 @@ fun WakkuApp(modifier: Modifier = Modifier) {
             val alarmId = backStackEntry.arguments?.getLong("alarmId") ?: NEW_ALARM_ID
             val editingId = alarmId.takeIf { it != NEW_ALARM_ID }
             val viewModel: AlarmEditViewModel = viewModel(
-                factory = viewModelFactory { initializer { AlarmEditViewModel(alarmDao, editingId) } },
+                factory = viewModelFactory { initializer { AlarmEditViewModel(alarmDao, alarmScheduler, editingId) } },
             )
             val state by viewModel.state.collectAsStateWithLifecycle()
             AlarmEditScreen(
