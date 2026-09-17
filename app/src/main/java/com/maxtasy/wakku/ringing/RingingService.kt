@@ -161,8 +161,9 @@ class RingingService : Service() {
         private const val REQUEST_CODE_SNOOZE_OFFSET = 1_000_000
         private val VIBRATION_PATTERN = longArrayOf(0, 1000, 1000)
 
-        // Hardcoded until Milestone 6 makes it a setting.
+        // Hardcoded until Milestone 6 makes them settings.
         const val SNOOZE_MINUTES = 5
+        const val NUMBER_OF_SHAKES = 30
 
         fun intent(context: Context, alarm: Alarm): Intent =
             Intent(context, RingingService::class.java).apply {

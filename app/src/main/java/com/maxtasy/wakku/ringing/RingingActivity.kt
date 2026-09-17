@@ -2,6 +2,8 @@ package com.maxtasy.wakku.ringing
 
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -15,23 +17,38 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maxtasy.wakku.shake.ShakeDetector
 import com.maxtasy.wakku.ui.theme.WakkuTheme
 
 /** Shows over the lock screen when an alarm fires, via RingingService's full-screen notification intent. */
 class RingingActivity : ComponentActivity() {
 
     private var alarmId: Long = -1L
+
+    // Tracks the shake challenge across leaving-the-screen paths (back, home,
+    // task switch) so onStop can fall back to snoozing if it wasn't finished
+    // some other way (completed, or the explicit "Snooze instead" tap).
+    private var shakeChallengeActive = false
+    private var shakeChallengeResolved = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,17 +73,41 @@ class RingingActivity : ComponentActivity() {
         setContent {
             WakkuTheme {
                 val ringingId by RingingController.ringingAlarmId.collectAsStateWithLifecycle()
-                LaunchedEffect(ringingId) {
-                    if (ringingId != alarmId) finish()
-                }
                 RingingScreen(
+                    ringingId = ringingId,
+                    alarmId = alarmId,
                     hour = hour,
                     minute = minute,
                     label = label,
+                    onFinish = ::finish,
                     onSnooze = { sendServiceAction(RingingService.ACTION_SNOOZE); finish() },
-                    onStop = { sendServiceAction(RingingService.ACTION_STOP); finish() },
+                    onStopTapped = {
+                        sendServiceAction(RingingService.ACTION_STOP)
+                        shakeChallengeActive = true
+                        shakeChallengeResolved = false
+                    },
+                    onChallengeCompleted = {
+                        shakeChallengeResolved = true
+                        finish()
+                    },
+                    onChallengeAbandoned = {
+                        shakeChallengeResolved = true
+                        sendServiceAction(RingingService.ACTION_SNOOZE)
+                        finish()
+                    },
                 )
             }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Walked away (back/home/task switch) mid-challenge without finishing
+        // or explicitly bailing out: treat it the same as tapping Snooze.
+        if (isChangingConfigurations) return
+        if (shakeChallengeActive && !shakeChallengeResolved) {
+            shakeChallengeResolved = true
+            sendServiceAction(RingingService.ACTION_SNOOZE)
         }
     }
 
@@ -90,48 +131,127 @@ class RingingActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Stop silences the alarm immediately and starts the shake challenge; only
+ * finishing that challenge actually dismisses the alarm. Not finishing it —
+ * cancelling, or just walking away — falls back to snoozing instead, so
+ * silence alone is never enough to make the alarm go away for good.
+ */
 @Composable
 private fun RingingScreen(
+    ringingId: Long?,
+    alarmId: Long,
     hour: Int,
     minute: Int,
     label: String,
+    onFinish: () -> Unit,
     onSnooze: () -> Unit,
-    onStop: () -> Unit,
+    onStopTapped: () -> Unit,
+    onChallengeCompleted: () -> Unit,
+    onChallengeAbandoned: () -> Unit,
 ) {
+    var isShaking by rememberSaveable { mutableStateOf(false) }
+    var shakeCount by rememberSaveable { mutableIntStateOf(0) }
+
+    // Only auto-close for *external* dismissal (e.g. the notification's own
+    // actions) — once we're in the challenge, we silenced things ourselves.
+    LaunchedEffect(ringingId, isShaking) {
+        if (!isShaking && ringingId != alarmId) onFinish()
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Spacer(Modifier.height(48.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "%02d:%02d".format(hour, minute),
-                    style = MaterialTheme.typography.displayLarge,
-                )
-                if (label.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(text = label, style = MaterialTheme.typography.titleMedium)
-                }
-            }
+        if (isShaking) {
+            ShakeChallenge(
+                shakeCount = shakeCount,
+                requiredShakes = RingingService.NUMBER_OF_SHAKES,
+                onShake = { shakeCount++ },
+                onCancel = onChallengeAbandoned,
+                onComplete = onChallengeCompleted,
+            )
+        } else {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                OutlinedButton(
-                    onClick = onSnooze,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                ) {
-                    Text("Snooze")
+                Spacer(Modifier.height(48.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "%02d:%02d".format(hour, minute),
+                        style = MaterialTheme.typography.displayLarge,
+                    )
+                    if (label.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(text = label, style = MaterialTheme.typography.titleMedium)
+                    }
                 }
-                Button(
-                    onClick = onStop,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Text("Stop")
+                    OutlinedButton(
+                        onClick = onSnooze,
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                    ) {
+                        Text("Snooze")
+                    }
+                    Button(
+                        onClick = {
+                            onStopTapped()
+                            isShaking = true
+                            shakeCount = 0
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                    ) {
+                        Text("Stop")
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ShakeChallenge(
+    shakeCount: Int,
+    requiredShakes: Int,
+    onShake: () -> Unit,
+    onCancel: () -> Unit,
+    onComplete: () -> Unit,
+) {
+    val context = LocalContext.current
+
+    DisposableEffect(Unit) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val detector = ShakeDetector(onShake = onShake)
+        sensorManager.registerListener(detector, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sensorManager.unregisterListener(detector) }
+    }
+
+    LaunchedEffect(shakeCount) {
+        if (shakeCount >= requiredShakes) onComplete()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(text = "Shake to stop", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(24.dp))
+        Text(
+            text = "$shakeCount / $requiredShakes",
+            style = MaterialTheme.typography.displayMedium,
+        )
+        Spacer(Modifier.height(24.dp))
+        LinearProgressIndicator(
+            progress = { (shakeCount.toFloat() / requiredShakes).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(40.dp))
+        TextButton(onClick = onCancel) {
+            Text("Snooze instead")
         }
     }
 }
