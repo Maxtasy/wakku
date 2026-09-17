@@ -24,7 +24,11 @@ class AlarmScheduler(private val context: Context) {
             cancel(alarm)
             return
         }
-        val triggerAtMillis = nextTriggerMillis(alarm)
+        scheduleAt(alarm, nextTriggerMillis(alarm))
+    }
+
+    /** Schedules at an explicit time, e.g. "snooze N minutes from now" rather than the next matching day. */
+    fun scheduleAt(alarm: Alarm, triggerAtMillis: Long) {
         val showIntent = PendingIntent.getActivity(
             context,
             alarm.id.toInt(),
