@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -23,6 +24,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import kotlin.math.roundToInt
 
 /** Shared between the global Settings screen and per-alarm override editing. */
@@ -59,12 +63,19 @@ fun SettingSlider(
 @Composable
 fun VibrationSwitchRow(vibrationEnabled: Boolean, onVibrationEnabledChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = vibrationEnabled,
+                onValueChange = onVibrationEnabledChange,
+                role = Role.Switch,
+            )
+            .semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("Vibrate", style = MaterialTheme.typography.titleMedium)
-        Switch(checked = vibrationEnabled, onCheckedChange = onVibrationEnabledChange)
+        Switch(checked = vibrationEnabled, onCheckedChange = null)
     }
 }
 
@@ -90,7 +101,7 @@ fun SoundPickerRow(soundUri: String?, onSoundUriChange: (String?) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
+            .clickable(onClickLabel = "Change alarm sound") {
                 val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                     putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
                     putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
@@ -102,7 +113,8 @@ fun SoundPickerRow(soundUri: String?, onSoundUriChange: (String?) -> Unit) {
                     )
                 }
                 pickerLauncher.launch(intent)
-            },
+            }
+            .semantics(mergeDescendants = true) { role = Role.Button },
     ) {
         Text("Alarm sound", style = MaterialTheme.typography.titleMedium)
         Text(soundName, style = MaterialTheme.typography.bodyMedium)

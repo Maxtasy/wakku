@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -34,6 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.maxtasy.wakku.settings.SettingSlider
 import com.maxtasy.wakku.settings.SoundPickerRow
@@ -125,12 +130,19 @@ fun AlarmEditScreen(
             HorizontalDivider()
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = useCustomSettings,
+                        onValueChange = onUseCustomSettingsChange,
+                        role = Role.Switch,
+                    )
+                    .semantics(mergeDescendants = true) {},
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Custom settings for this alarm", style = MaterialTheme.typography.titleMedium)
-                Switch(checked = useCustomSettings, onCheckedChange = onUseCustomSettingsChange)
+                Switch(checked = useCustomSettings, onCheckedChange = null)
             }
             if (useCustomSettings) {
                 Column(
@@ -224,7 +236,12 @@ private fun DayOfWeekSelector(
                 selected = isSelected,
                 onClick = { onDaysChange(if (isSelected) selected - day else selected + day) },
                 label = { Text(day.getDisplayName(TextStyle.NARROW, Locale.getDefault())) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .semantics {
+                        contentDescription = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                    },
             )
         }
     }

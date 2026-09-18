@@ -2,9 +2,13 @@ package com.maxtasy.wakku
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -14,7 +18,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -58,6 +64,9 @@ private val Context.alarmDao: AlarmDao
 private val Context.settingsRepository: SettingsRepository
     get() = (applicationContext as WakkuApplication).settings
 
+private fun Context.isIgnoringBatteryOptimizations(): Boolean =
+    getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+
 @Composable
 fun WakkuApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
@@ -78,6 +87,14 @@ fun WakkuApp(modifier: Modifier = Modifier) {
         }
     }
 
+    // MIUI/Xiaomi/Samsung-style OEMs aggressively kill background apps; without this
+    // exemption the ringing foreground service can be stopped before an alarm fires.
+    var isIgnoringBatteryOptimizations by remember { mutableStateOf(context.isIgnoringBatteryOptimizations()) }
+    var batteryWarningDismissed by remember { mutableStateOf(false) }
+    val batteryOptimizationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { isIgnoringBatteryOptimizations = context.isIgnoringBatteryOptimizations() }
+
     NavHost(navController = navController, startDestination = "alarms", modifier = modifier) {
         composable("alarms") {
             val viewModel: AlarmListViewModel = viewModel(
@@ -89,6 +106,16 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                 onToggle = viewModel::setEnabled,
                 onOpenAlarm = { id -> navController.navigate("alarm/${id ?: NEW_ALARM_ID}") },
                 onOpenSettings = { navController.navigate("settings") },
+                showBatteryOptimizationWarning = !isIgnoringBatteryOptimizations && !batteryWarningDismissed,
+                onFixBatteryOptimization = {
+                    batteryOptimizationLauncher.launch(
+                        Intent(
+                            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}"),
+                        ),
+                    )
+                },
+                onDismissBatteryOptimizationWarning = { batteryWarningDismissed = true },
             )
         }
         composable("settings") {

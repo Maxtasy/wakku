@@ -11,6 +11,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Lets Wakku ask directly to be exempted from battery optimization, instead of
+         sending the user to the general settings list. Google Play reserves this for
+         apps whose core function needs it — alarms qualify, same as USE_EXACT_ALARM. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".WakkuApplication"

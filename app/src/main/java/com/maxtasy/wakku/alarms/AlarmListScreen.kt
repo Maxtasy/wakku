@@ -14,7 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -24,10 +27,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maxtasy.wakku.data.Alarm
@@ -42,6 +48,9 @@ fun AlarmListScreen(
     onToggle: (Alarm, Boolean) -> Unit,
     onOpenAlarm: (Long?) -> Unit,
     onOpenSettings: () -> Unit,
+    showBatteryOptimizationWarning: Boolean = false,
+    onFixBatteryOptimization: () -> Unit = {},
+    onDismissBatteryOptimizationWarning: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -60,26 +69,68 @@ fun AlarmListScreen(
             }
         }
     ) { padding ->
-        if (alarms.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("No alarms yet.", style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (showBatteryOptimizationWarning) {
+                BatteryOptimizationBanner(
+                    onFix = onFixBatteryOptimization,
+                    onDismiss = onDismissBatteryOptimizationWarning,
+                    modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 0.dp),
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(alarms, key = { it.id }) { alarm ->
-                    AlarmRow(
-                        alarm = alarm,
-                        onToggle = { onToggle(alarm, it) },
-                        onClick = { onOpenAlarm(alarm.id) },
-                    )
+            if (alarms.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("No alarms yet.", style = MaterialTheme.typography.titleMedium)
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(alarms, key = { it.id }) { alarm ->
+                        AlarmRow(
+                            alarm = alarm,
+                            onToggle = { onToggle(alarm, it) },
+                            onClick = { onOpenAlarm(alarm.id) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Alarms may be unreliable", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "This device can kill Wakku in the background. Exempt it from battery " +
+                        "optimization to keep alarms reliable.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onFix, modifier = Modifier.align(Alignment.Start)) {
+                    Text("Fix it")
+                }
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss")
             }
         }
     }
@@ -113,7 +164,13 @@ private fun AlarmRow(alarm: Alarm, onToggle: (Boolean) -> Unit, onClick: () -> U
                     )
                 }
             }
-            Switch(checked = alarm.enabled, onCheckedChange = onToggle)
+            Switch(
+                checked = alarm.enabled,
+                onCheckedChange = onToggle,
+                modifier = Modifier.semantics {
+                    contentDescription = "Alarm at %02d:%02d".format(alarm.hour, alarm.minute)
+                },
+            )
         }
     }
 }
