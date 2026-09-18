@@ -15,12 +15,17 @@ class ShakeCounter(
     private val thresholdGravity: Float = 2.7f,
     private val minIntervalMillis: Long = 300L,
 ) {
-    private var lastShakeAtMillis: Long = 0L
+    private var lastShakeAtMillis: Long? = null
 
     /** Returns true if this reading counts as a new shake. */
     fun onReading(gForce: Float, atMillis: Long): Boolean {
         if (gForce <= thresholdGravity) return false
-        if (atMillis - lastShakeAtMillis < minIntervalMillis) return false
+        val lastShake = lastShakeAtMillis
+        // A null lastShake means there's no prior shake to compare against, so the
+        // first-ever reading always counts (this used to be sentinel-valued 0L, which
+        // silently swallowed the first shake if atMillis was itself within
+        // minIntervalMillis of zero, e.g. timestamps sourced from elapsedRealtime()).
+        if (lastShake != null && atMillis - lastShake < minIntervalMillis) return false
         lastShakeAtMillis = atMillis
         return true
     }

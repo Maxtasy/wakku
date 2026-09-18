@@ -152,7 +152,7 @@ class RingingActivity : ComponentActivity() {
  * silence alone is never enough to make the alarm go away for good.
  */
 @Composable
-private fun RingingScreen(
+internal fun RingingScreen(
     ringingId: Long?,
     alarmId: Long,
     hour: Int,

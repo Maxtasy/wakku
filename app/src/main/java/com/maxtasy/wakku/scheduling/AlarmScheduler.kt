@@ -7,7 +7,6 @@ import android.content.Intent
 import com.maxtasy.wakku.MainActivity
 import com.maxtasy.wakku.data.Alarm
 import java.time.LocalDateTime
-import java.time.ZoneId
 
 /**
  * Wraps [AlarmManager.setAlarmClock], which is exempt from Doze/App Standby
@@ -24,7 +23,7 @@ class AlarmScheduler(private val context: Context) {
             cancel(alarm)
             return
         }
-        scheduleAt(alarm, nextTriggerMillis(alarm))
+        scheduleAt(alarm, AlarmTiming.nextTriggerMillis(alarm, LocalDateTime.now()))
     }
 
     /** Schedules at an explicit time, e.g. "snooze N minutes from now" rather than the next matching day. */
@@ -52,24 +51,4 @@ class AlarmScheduler(private val context: Context) {
             Intent(context, AlarmReceiver::class.java).putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-
-    private fun nextTriggerMillis(alarm: Alarm): Long {
-        val now = LocalDateTime.now()
-        val today = now.toLocalDate()
-        val timeToday = today.atTime(alarm.hour, alarm.minute)
-
-        val triggerDate = if (alarm.repeatDays.isEmpty()) {
-            if (timeToday.isAfter(now)) today else today.plusDays(1)
-        } else {
-            (0..7)
-                .map { offset -> today.plusDays(offset.toLong()) }
-                .first { date ->
-                    date.dayOfWeek in alarm.repeatDays && (date != today || timeToday.isAfter(now))
-                }
-        }
-        return triggerDate.atTime(alarm.hour, alarm.minute)
-            .atZone(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }
 }
