@@ -112,7 +112,9 @@ fun WakkuApp(modifier: Modifier = Modifier) {
             val alarmId = backStackEntry.arguments?.getLong("alarmId") ?: NEW_ALARM_ID
             val editingId = alarmId.takeIf { it != NEW_ALARM_ID }
             val viewModel: AlarmEditViewModel = viewModel(
-                factory = viewModelFactory { initializer { AlarmEditViewModel(alarmDao, alarmScheduler, editingId) } },
+                factory = viewModelFactory {
+                    initializer { AlarmEditViewModel(alarmDao, alarmScheduler, settingsRepository, editingId) }
+                },
             )
             val state by viewModel.state.collectAsStateWithLifecycle()
             AlarmEditScreen(
@@ -121,9 +123,19 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                 repeatDays = state.repeatDays,
                 label = state.label,
                 isNew = editingId == null,
+                useCustomSettings = state.useCustomSettings,
+                snoozeMinutes = state.snoozeMinutes,
+                numberOfShakes = state.numberOfShakes,
+                vibrationEnabled = state.vibrationEnabled,
+                soundUri = state.soundUri,
                 onTimeChange = viewModel::setTime,
                 onDaysChange = viewModel::setDays,
                 onLabelChange = viewModel::setLabel,
+                onUseCustomSettingsChange = viewModel::setUseCustomSettings,
+                onSnoozeMinutesChange = viewModel::setSnoozeMinutes,
+                onNumberOfShakesChange = viewModel::setNumberOfShakes,
+                onVibrationEnabledChange = viewModel::setVibrationEnabled,
+                onSoundUriChange = viewModel::setSoundUri,
                 onSave = {
                     viewModel.save()
                     navController.popBackStack()

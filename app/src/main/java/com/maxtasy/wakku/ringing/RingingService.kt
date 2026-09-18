@@ -59,14 +59,19 @@ class RingingService : Service() {
         val label = intent?.getStringExtra(EXTRA_LABEL).orEmpty()
 
         scope.launch {
-            val settings = (application as WakkuApplication).settings.current()
+            val app = application as WakkuApplication
+            val defaults = app.settings.current()
+            val alarm = app.database.alarmDao().getById(alarmId)
+            val numberOfShakes = alarm?.numberOfShakes ?: defaults.numberOfShakes
+            val vibrationEnabled = alarm?.vibrationEnabled ?: defaults.vibrationEnabled
+            val soundUri = alarm?.soundUri ?: defaults.soundUri
             startForeground(
                 NOTIFICATION_ID,
-                buildNotification(alarmId, hour, minute, label, settings.numberOfShakes),
+                buildNotification(alarmId, hour, minute, label, numberOfShakes),
             )
             RingingController.ringingAlarmId.value = alarmId
-            startSound(settings.soundUri)
-            if (settings.vibrationEnabled) startVibration()
+            startSound(soundUri)
+            if (vibrationEnabled) startVibration()
         }
         return START_STICKY
     }
@@ -164,7 +169,7 @@ class RingingService : Service() {
             // AlarmReceiver); snoozing means it's still genuinely pending, so
             // the list shouldn't show it as off while that's true.
             dao.setEnabled(alarmId, true)
-            val snoozeMinutes = app.settings.current().snoozeMinutes
+            val snoozeMinutes = alarm.snoozeMinutes ?: app.settings.current().snoozeMinutes
             val triggerAt = System.currentTimeMillis() + snoozeMinutes * 60_000L
             AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt)
             showSnoozedNotification(alarmId, triggerAt)

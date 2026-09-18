@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [Alarm::class], version = 1, exportSchema = false)
+@Database(entities = [Alarm::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class WakkuDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
@@ -20,7 +20,10 @@ abstract class WakkuDatabase : RoomDatabase() {
                     context.applicationContext,
                     WakkuDatabase::class.java,
                     "wakku.db",
-                ).build().also { instance = it }
+                )
+                    // No real user data to preserve yet; destructive is fine.
+                    .fallbackToDestructiveMigration(true)
+                    .build().also { instance = it }
             }
     }
 }

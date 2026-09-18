@@ -15,11 +15,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -33,6 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.maxtasy.wakku.settings.SettingSlider
+import com.maxtasy.wakku.settings.SoundPickerRow
+import com.maxtasy.wakku.settings.VibrationSwitchRow
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -45,9 +50,19 @@ fun AlarmEditScreen(
     repeatDays: Set<DayOfWeek>,
     label: String,
     isNew: Boolean,
+    useCustomSettings: Boolean,
+    snoozeMinutes: Int,
+    numberOfShakes: Int,
+    vibrationEnabled: Boolean,
+    soundUri: String?,
     onTimeChange: (Int, Int) -> Unit,
     onDaysChange: (Set<DayOfWeek>) -> Unit,
     onLabelChange: (String) -> Unit,
+    onUseCustomSettingsChange: (Boolean) -> Unit,
+    onSnoozeMinutesChange: (Int) -> Unit,
+    onNumberOfShakesChange: (Int) -> Unit,
+    onVibrationEnabledChange: (Boolean) -> Unit,
+    onSoundUriChange: (String?) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
     onBack: () -> Unit,
@@ -106,6 +121,45 @@ fun AlarmEditScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+
+            HorizontalDivider()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Custom settings for this alarm", style = MaterialTheme.typography.titleMedium)
+                Switch(checked = useCustomSettings, onCheckedChange = onUseCustomSettingsChange)
+            }
+            if (useCustomSettings) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(28.dp),
+                ) {
+                    SettingSlider(
+                        label = "Snooze time",
+                        valueLabel = "$snoozeMinutes min",
+                        value = snoozeMinutes,
+                        onValueChange = onSnoozeMinutesChange,
+                        valueRange = 1..30,
+                        step = 1,
+                    )
+                    SettingSlider(
+                        label = "Shakes to stop",
+                        valueLabel = "$numberOfShakes shakes",
+                        value = numberOfShakes,
+                        onValueChange = onNumberOfShakesChange,
+                        valueRange = 5..100,
+                        step = 5,
+                    )
+                    VibrationSwitchRow(
+                        vibrationEnabled = vibrationEnabled,
+                        onVibrationEnabledChange = onVibrationEnabledChange,
+                    )
+                    SoundPickerRow(soundUri = soundUri, onSoundUriChange = onSoundUriChange)
+                }
+            }
 
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
                 Text("Save")
