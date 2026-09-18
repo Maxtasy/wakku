@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.VibrationEffect
@@ -29,7 +30,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 
-/** Rings an alarm: loops the default alarm sound + vibration and shows a full-screen notification. */
+/** Rings an alarm: loops the current alarm sound + vibration and shows a full-screen notification. */
 class RingingService : Service() {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -57,10 +58,16 @@ class RingingService : Service() {
         val minute = intent?.getIntExtra(EXTRA_MINUTE, 0) ?: 0
         val label = intent?.getStringExtra(EXTRA_LABEL).orEmpty()
 
-        startForeground(NOTIFICATION_ID, buildNotification(alarmId, hour, minute, label))
-        RingingController.ringingAlarmId.value = alarmId
-        startSound()
-        startVibration()
+        scope.launch {
+            val settings = (application as WakkuApplication).settings.current()
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(alarmId, hour, minute, label, settings.numberOfShakes),
+            )
+            RingingController.ringingAlarmId.value = alarmId
+            startSound(settings.soundUri)
+            if (settings.vibrationEnabled) startVibration()
+        }
         return START_STICKY
     }
 
@@ -69,17 +76,17 @@ class RingingService : Service() {
         stopRinging()
     }
 
-    private fun buildNotification(alarmId: Long, hour: Int, minute: Int, label: String): Notification {
+    private fun buildNotification(
+        alarmId: Long,
+        hour: Int,
+        minute: Int,
+        label: String,
+        numberOfShakes: Int,
+    ): Notification {
         val fullScreenIntent = PendingIntent.getActivity(
             this,
             alarmId.toInt(),
-            RingingActivity.intent(this, alarmId, hour, minute, label),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val stopIntent = PendingIntent.getService(
-            this,
-            alarmId.toInt(),
-            Intent(this, RingingService::class.java).setAction(ACTION_STOP),
+            RingingActivity.intent(this, alarmId, hour, minute, label, numberOfShakes),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val snoozeIntent = PendingIntent.getService(
@@ -100,13 +107,16 @@ class RingingService : Service() {
             .setOngoing(true)
             .setContentIntent(fullScreenIntent)
             .setFullScreenIntent(fullScreenIntent, true)
+            // No quick "Stop" action here on purpose: stopping has to go
+            // through the shake challenge in RingingActivity, not a single
+            // tap from the notification shade.
             .addAction(0, "Snooze", snoozeIntent)
-            .addAction(0, "Stop", stopIntent)
             .build()
     }
 
-    private fun startSound() {
-        val uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+    private fun startSound(soundUri: String?) {
+        val uri = soundUri?.let { Uri.parse(it) }
+            ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         mediaPlayer = MediaPlayer().apply {
             setAudioAttributes(
@@ -147,13 +157,15 @@ class RingingService : Service() {
         stopRinging()
         if (alarmId == -1L) return
         scope.launch {
-            val dao = (application as WakkuApplication).database.alarmDao()
+            val app = application as WakkuApplication
+            val dao = app.database.alarmDao()
             val alarm = dao.getById(alarmId) ?: return@launch
             // A one-time alarm gets disabled the instant it first rings (see
             // AlarmReceiver); snoozing means it's still genuinely pending, so
             // the list shouldn't show it as off while that's true.
             dao.setEnabled(alarmId, true)
-            val triggerAt = System.currentTimeMillis() + SNOOZE_MINUTES * 60_000L
+            val snoozeMinutes = app.settings.current().snoozeMinutes
+            val triggerAt = System.currentTimeMillis() + snoozeMinutes * 60_000L
             AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt)
             showSnoozedNotification(alarmId, triggerAt)
         }
@@ -186,16 +198,13 @@ class RingingService : Service() {
         const val EXTRA_HOUR = "extra_hour"
         const val EXTRA_MINUTE = "extra_minute"
         const val EXTRA_LABEL = "extra_label"
+        const val EXTRA_NUMBER_OF_SHAKES = "extra_number_of_shakes"
 
         const val CHANNEL_ID = "alarms"
         private const val NOTIFICATION_ID = 1
         private const val REQUEST_CODE_SNOOZE_OFFSET = 1_000_000
         private const val SNOOZED_NOTIFICATION_ID_OFFSET = 2_000_000
         private val VIBRATION_PATTERN = longArrayOf(0, 1000, 1000)
-
-        // Hardcoded until Milestone 6 makes them settings.
-        const val SNOOZE_MINUTES = 5
-        const val NUMBER_OF_SHAKES = 30
 
         fun intent(context: Context, alarm: Alarm): Intent =
             Intent(context, RingingService::class.java).apply {

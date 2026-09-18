@@ -33,6 +33,9 @@ import com.maxtasy.wakku.alarms.AlarmListScreen
 import com.maxtasy.wakku.alarms.AlarmListViewModel
 import com.maxtasy.wakku.data.AlarmDao
 import com.maxtasy.wakku.scheduling.AlarmScheduler
+import com.maxtasy.wakku.settings.SettingsRepository
+import com.maxtasy.wakku.settings.SettingsScreen
+import com.maxtasy.wakku.settings.SettingsViewModel
 import com.maxtasy.wakku.ui.theme.WakkuTheme
 
 private const val NEW_ALARM_ID = -1L
@@ -52,12 +55,16 @@ class MainActivity : ComponentActivity() {
 private val Context.alarmDao: AlarmDao
     get() = (applicationContext as WakkuApplication).database.alarmDao()
 
+private val Context.settingsRepository: SettingsRepository
+    get() = (applicationContext as WakkuApplication).settings
+
 @Composable
 fun WakkuApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val alarmDao = context.alarmDao
     val alarmScheduler = remember(context) { AlarmScheduler(context.applicationContext) }
+    val settingsRepository = context.settingsRepository
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -81,6 +88,21 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                 alarms = alarms,
                 onToggle = viewModel::setEnabled,
                 onOpenAlarm = { id -> navController.navigate("alarm/${id ?: NEW_ALARM_ID}") },
+                onOpenSettings = { navController.navigate("settings") },
+            )
+        }
+        composable("settings") {
+            val viewModel: SettingsViewModel = viewModel(
+                factory = viewModelFactory { initializer { SettingsViewModel(settingsRepository) } },
+            )
+            val settings by viewModel.settings.collectAsStateWithLifecycle()
+            SettingsScreen(
+                settings = settings,
+                onSnoozeMinutesChange = viewModel::setSnoozeMinutes,
+                onNumberOfShakesChange = viewModel::setNumberOfShakes,
+                onVibrationEnabledChange = viewModel::setVibrationEnabled,
+                onSoundUriChange = viewModel::setSoundUri,
+                onBack = { navController.popBackStack() },
             )
         }
         composable(

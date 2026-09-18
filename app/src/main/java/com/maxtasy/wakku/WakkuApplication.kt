@@ -6,12 +6,14 @@ import android.app.NotificationManager
 import com.maxtasy.wakku.data.WakkuDatabase
 import com.maxtasy.wakku.ringing.RingingService
 import com.maxtasy.wakku.scheduling.AlarmScheduler
+import com.maxtasy.wakku.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class WakkuApplication : Application() {
     val database: WakkuDatabase by lazy { WakkuDatabase.getInstance(this) }
+    val settings: SettingsRepository by lazy { SettingsRepository(this) }
 
     override fun onCreate() {
         super.onCreate()

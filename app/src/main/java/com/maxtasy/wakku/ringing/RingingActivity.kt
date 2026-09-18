@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.maxtasy.wakku.settings.AppSettings
 import com.maxtasy.wakku.shake.ShakeDetector
 import com.maxtasy.wakku.ui.theme.WakkuTheme
 
@@ -69,6 +70,10 @@ class RingingActivity : ComponentActivity() {
         val hour = intent.getIntExtra(RingingService.EXTRA_HOUR, 0)
         val minute = intent.getIntExtra(RingingService.EXTRA_MINUTE, 0)
         val label = intent.getStringExtra(RingingService.EXTRA_LABEL).orEmpty()
+        val numberOfShakes = intent.getIntExtra(
+            RingingService.EXTRA_NUMBER_OF_SHAKES,
+            AppSettings.DEFAULT_NUMBER_OF_SHAKES,
+        )
 
         setContent {
             WakkuTheme {
@@ -79,6 +84,7 @@ class RingingActivity : ComponentActivity() {
                     hour = hour,
                     minute = minute,
                     label = label,
+                    requiredShakes = numberOfShakes,
                     onFinish = ::finish,
                     onSnooze = { sendServiceAction(RingingService.ACTION_SNOOZE); finish() },
                     onStopTapped = {
@@ -120,12 +126,20 @@ class RingingActivity : ComponentActivity() {
     }
 
     companion object {
-        fun intent(context: Context, alarmId: Long, hour: Int, minute: Int, label: String): Intent =
+        fun intent(
+            context: Context,
+            alarmId: Long,
+            hour: Int,
+            minute: Int,
+            label: String,
+            numberOfShakes: Int,
+        ): Intent =
             Intent(context, RingingActivity::class.java).apply {
                 putExtra(RingingService.EXTRA_ALARM_ID, alarmId)
                 putExtra(RingingService.EXTRA_HOUR, hour)
                 putExtra(RingingService.EXTRA_MINUTE, minute)
                 putExtra(RingingService.EXTRA_LABEL, label)
+                putExtra(RingingService.EXTRA_NUMBER_OF_SHAKES, numberOfShakes)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
     }
@@ -144,6 +158,7 @@ private fun RingingScreen(
     hour: Int,
     minute: Int,
     label: String,
+    requiredShakes: Int,
     onFinish: () -> Unit,
     onSnooze: () -> Unit,
     onStopTapped: () -> Unit,
@@ -163,7 +178,7 @@ private fun RingingScreen(
         if (isShaking) {
             ShakeChallenge(
                 shakeCount = shakeCount,
-                requiredShakes = RingingService.NUMBER_OF_SHAKES,
+                requiredShakes = requiredShakes,
                 onShake = { shakeCount++ },
                 onCancel = onChallengeAbandoned,
                 onComplete = onChallengeCompleted,
