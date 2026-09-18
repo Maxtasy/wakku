@@ -16,6 +16,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
 class AlarmEditScreenTest {
@@ -107,8 +109,11 @@ class AlarmEditScreenTest {
         setContent(useCustomSettings = true)
         composeTestRule.onNodeWithText("Snooze time").assertIsDisplayed()
         composeTestRule.onNodeWithText("Shakes to stop").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Vibrate").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Alarm sound").assertIsDisplayed()
+        // The screen is a scrollable column, so "Vibrate" and "Alarm sound" can land
+        // below the fold on shorter screens — existence, not on-screen visibility, is
+        // what this test cares about.
+        composeTestRule.onNodeWithText("Vibrate").assertExists()
+        composeTestRule.onNodeWithText("Alarm sound").assertExists()
     }
 
     @Test
@@ -127,11 +132,17 @@ class AlarmEditScreenTest {
         assertEquals("Wake up", value)
     }
 
+    // The day chips' contentDescription is the device locale's full day name (see
+    // DayOfWeekSelector), not always English, so tests must derive it the same way
+    // rather than hardcoding "Monday".
+    private val mondayFullName: String =
+        DayOfWeek.MONDAY.getDisplayName(TextStyle.FULL, Locale.getDefault())
+
     @Test
     fun selectingUnselectedDayAddsIt() {
         var result: Set<DayOfWeek>? = null
         setContent(repeatDays = emptySet(), onDaysChange = { result = it })
-        composeTestRule.onNodeWithContentDescription("Monday").performClick()
+        composeTestRule.onNodeWithContentDescription(mondayFullName).performClick()
         assertEquals(setOf(DayOfWeek.MONDAY), result)
     }
 
@@ -139,7 +150,7 @@ class AlarmEditScreenTest {
     fun selectingAlreadySelectedDayRemovesIt() {
         var result: Set<DayOfWeek>? = null
         setContent(repeatDays = setOf(DayOfWeek.MONDAY), onDaysChange = { result = it })
-        composeTestRule.onNodeWithContentDescription("Monday").performClick()
+        composeTestRule.onNodeWithContentDescription(mondayFullName).performClick()
         assertTrue(result?.isEmpty() ?: false)
     }
 
