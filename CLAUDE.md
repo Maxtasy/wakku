@@ -13,7 +13,7 @@ original pitch.
 
 ## Status
 
-M0–M6 complete and pushed to `main`. **Immediate next step below, before M7.**
+M0–M8 complete and pushed to `main`. **Next up: M9 (dogfood).**
 
 - M0 Project setup ✓
 - M1 Alarm CRUD ✓
@@ -22,25 +22,16 @@ M0–M6 complete and pushed to `main`. **Immediate next step below, before M7.**
 - M4 Shake-to-stop ✓
 - M5 Snooze ✓
 - M6 Settings (global snooze/shakes/vibration/sound) ✓
-
-## Immediate next step: per-alarm settings
-
-The user wants **per-alarm overrides** for snooze time / shake count /
-vibration / sound instead of one global setting (M6 shipped the global
-version; per-alarm was deferred out of that session to keep context
-manageable — do this next, before M7, unless told otherwise). Rough plan:
-
-1. Add nullable override columns to the `Alarm` Room entity
-   (`snoozeMinutes: Int?`, `numberOfShakes: Int?`, `vibrationEnabled: Boolean?`,
-   `soundUri: String?`) — null means "use the global default from Settings."
-   Bump `@Database` version; a destructive migration is fine, there's no real
-   user data to preserve yet.
-2. Extract the `SettingSlider` composable and the sound-picker row out of
-   `settings/SettingsScreen.kt` into shared composables so `AlarmEditScreen`
-   can reuse them for per-alarm overrides instead of duplicating that UI.
-3. `RingingService` / `RingingActivity` should prefer the alarm's own
-   override, falling back to `SettingsRepository`'s value when null.
-4. Keep the global Settings screen as "defaults for new alarms."
+- Per-alarm settings ✓ (done between M6 and M7, out of the original blueprint's
+  numbering — nullable override columns on `Alarm`; null means "use the global
+  default from `SettingsRepository`". See `AlarmEditScreen`'s "Custom settings
+  for this alarm" toggle and `RingingService`'s `alarm.xxx ?: defaults.xxx`
+  pattern.)
+- M7 Polish & compatibility ✓ (app icon and empty state turned out to already
+  be done from earlier work; added dark-mode window theme, an accessibility
+  pass, and the battery-optimization exemption prompt)
+- M8 Testing & stability ✓ (unit tests for `ShakeCounter`/`AlarmTiming`;
+  Compose UI tests for `AlarmEditScreen`/`RingingActivity`'s ringing screen)
 
 ## Tech stack
 
@@ -65,8 +56,13 @@ manageable — do this next, before M7, unless told otherwise). Rough plan:
 - `scheduling/` — `AlarmScheduler` (wraps `AlarmManager.setAlarmClock`), `AlarmReceiver` (fires alarms), `BootReceiver`
 - `ringing/` — `RingingService` (foreground service: sound/vibration/notification), `RingingActivity` (full-screen UI, shake-challenge state machine), `RingingController` (shared StateFlow so the Activity can close itself if the notification's own action ends things externally)
 - `shake/` — `ShakeCounter` (pure, unit-testable peak-detection logic) + `ShakeDetector` (SensorEventListener wrapper around it)
-- `settings/` — `AppSettings`, `SettingsRepository` (DataStore), `SettingsViewModel`, `SettingsScreen`
-- `ui/theme/` — Material3 color scheme, deliberately filled out beyond the 5 default roles (a partially-filled scheme leaks Material3's baseline purple into unset roles like Switch thumbs / FAB containers — happened once already, fixed in M3)
+- `settings/` — `AppSettings`, `SettingsRepository` (DataStore), `SettingsViewModel`, `SettingsScreen`, `SettingsComponents` (shared `SettingSlider`/`VibrationSwitchRow`/`SoundPickerRow`, reused by `AlarmEditScreen` for per-alarm overrides)
+- `ui/theme/` — Material3 color scheme, deliberately filled out beyond the 5 default roles (a partially-filled scheme leaks Material3's baseline purple into unset roles like Switch thumbs / FAB containers — happened once already, fixed in M3). `tertiary`/`error`/`inverseSurface`/etc. roles are still left at Material3 defaults in both light and dark — fine for now since nothing renders an error state yet, but fill them in if that changes.
+
+`AlarmTiming` (in `scheduling/`) holds `AlarmScheduler`'s next-trigger-time
+math as a pure `nextTriggerMillis(alarm, now, zone)` function — mirrors the
+`ShakeCounter`/`ShakeDetector` split so it's unit testable without Android
+framework classes.
 
 ## Key non-obvious decisions
 
@@ -97,6 +93,75 @@ manageable — do this next, before M7, unless told otherwise). Rough plan:
   app's alarm is soonest, and the underlying `AlarmManager` "next alarm
   clock" registration was independently verified correct via `dumpsys
   alarm`.
+- **Battery-optimization exemption** (M7): `MainActivity` checks
+  `PowerManager.isIgnoringBatteryOptimizations()` and `AlarmListScreen` shows
+  a dismissible banner with a "Fix it" button that launches
+  `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` when not exempted.
+  On this MIUI device that intent doesn't show the stock Android allow/deny
+  dialog — MIUI redirects it to its own "Akkudetails" (battery details)
+  screen for the app, where the user has to manually pick "Keine
+  Beschränkungen" (No restrictions). Confirmed working end-to-end on-device:
+  the banner correctly disappears once that's selected, so MIUI's custom UI
+  is just a themed front-end over the same underlying AOSP doze-whitelist
+  state, not a separate mechanism.
+- **Accessibility** (M7): label+switch rows (vibrate switch, per-alarm
+  "Custom settings" switch) use `Modifier.toggleable(role = Role.Switch)` on
+  the row with `Switch(onCheckedChange = null)`, merged via
+  `Modifier.semantics(mergeDescendants = true)`, so screen readers announce
+  one actionable node instead of two. The day-of-week `FilterChip`s show a
+  single narrow letter visually but carry the full locale-aware day name
+  (`Locale.getDefault()`) as their `contentDescription`, plus a 48dp minimum
+  touch target.
+- **`ShakeCounter` had a latent bug**, caught by its own unit tests (M8):
+  `lastShakeAtMillis` defaulted to `0L`, so a reading timestamped at or near
+  zero would have its first-ever shake silently suppressed (`atMillis - 0 <
+  minIntervalMillis`). Harmless with the real `System.currentTimeMillis()`
+  clock (always huge), but a real trap if that clock source ever changed
+  (e.g. to `SystemClock.elapsedRealtime()`, which starts at 0 on boot). Now
+  uses a nullable `Long?` "no prior shake yet" sentinel instead.
+
+## Automated tests (added M8)
+
+- **Unit tests** (`app/src/test/`, plain JUnit4, no device/emulator needed):
+  `ShakeCounterTest`, `AlarmTimingTest`. Run with:
+  ```bash
+  gradle testDebugUnitTest
+  ```
+- **Instrumented Compose UI tests** (`app/src/androidTest/`):
+  `AlarmEditScreenTest`, `RingingScreenTest` (the latter needed
+  `RingingActivity`'s private `RingingScreen` composable made `internal`).
+  These render the composables directly with `createComposeRule()` — no
+  Activity/ViewModel wiring needed, since both screens take all state via
+  params/callbacks. The shake challenge's own sensor-driven counting isn't
+  exercised here (no way to fire real accelerometer events from a test); that
+  logic is covered by `ShakeCounterTest` instead.
+
+  **Do not use `gradle connectedDebugAndroidTest` on this MIUI device** — its
+  own install/uninstall-then-reinstall cycle reliably triggers MIUI's
+  "Installieren über USB" confirmation popup (a ~10–12s countdown that
+  defaults to **Deny**), and repeated denials make MIUI silently add a
+  persistent block for the package — found under Developer options →
+  "Installieren über USB" → the list/submenu entry, which then has to be
+  manually removed there before the app can be installed via `adb` again at
+  all (not just for tests). Instead, install both APKs once via plain `adb`
+  (which doesn't seem to trigger the same repeated-popup problem) and drive
+  the instrumentation runner directly:
+  ```bash
+  adb install app/build/outputs/apk/debug/app-debug.apk
+  adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+  adb shell am instrument -w com.maxtasy.wakku.test/androidx.test.runner.AndroidJUnitRunner
+  ```
+  Re-run `adb install` (no `-r` needed the first time; use `-r` after) only
+  for whichever APK actually changed.
+  - The test device's locale is German. Any assertion on locale-dependent
+    text (day names, etc.) must derive the expected string the same way
+    production code does (`Locale.getDefault()`) rather than hardcoding
+    English — `AlarmEditScreenTest` hardcoded "Monday" once and failed
+    on-device because the real contentDescription was "Montag".
+  - Use `assertExists()`, not `assertIsDisplayed()`, for elements that can be
+    scrolled off-screen (e.g. `AlarmEditScreen`'s bottom controls) — existence
+    is usually what the test actually cares about, and visibility depends on
+    viewport size.
 
 ## Testing workflow used so far
 
@@ -138,20 +203,27 @@ picks this up next:
   deleted test alarm that still has a pending fire) is harmless —
   `AlarmReceiver` no-ops silently if the alarm id it looked up no longer
   exists in the DB.
+- **The lock screen re-sleeps the display ~10s after `KEYCODE_WAKEUP`** if
+  nothing else touches it (`dumpsys power` shows
+  `mUserActivityTimeoutOverrideFromWindowManager=10000` while the keyguard is
+  showing — independent of the user's actual configured screen-timeout
+  setting). Multi-step `adb` sequences (wake, then a separate swipe, then a
+  separate screenshot) routinely lost the race and captured a black/asleep
+  frame. Chain wake + the actual interaction into a **single** `adb shell
+  "cmd1; cmd2; ..."` call to keep total latency under that window; once
+  actually past the keyguard the normal (much longer) screen-timeout setting
+  applies and this stops being an issue.
+- A first-time `adb install` of a **new** package (not a reinstall) can pop a
+  MIUI "Installieren über USB" confirmation with a ~10–12s countdown that
+  defaults to **Deny** — see the automated-tests section above for what
+  happens if it's missed a few times in a row (MIUI starts silently blocking
+  the package) and how to undo it.
 
 ## Remaining milestones (from the original blueprint)
 
-- **M7 — Polish & compatibility**: app icon (still a placeholder), empty
-  states, dark mode pass (theme already supports it, hasn't been visually
-  reviewed), accessibility pass, battery-optimization exemption prompt
-  (important on MIUI/Xiaomi/Samsung-style OEMs that aggressively kill
-  background apps — worth explicitly testing whether Wakku survives being
-  killed without requesting that exemption first).
-- **M8 — Testing & stability**: unit tests for `ShakeCounter` (already
-  structured to be testable without constructing a real `SensorEvent`) and
-  the snooze/reschedule math in `AlarmScheduler`; Compose UI tests for the
-  alarm form and ringing screen.
 - **M9 — Dogfood**: two weeks of real daily use, phone as primary alarm,
-  keep a backup alarm until confidence is there.
+  keep a backup alarm until confidence is there. Worth specifically watching
+  whether the battery-optimization exemption (M7) actually keeps `RingingService`
+  alive overnight on this MIUI device, since that was the whole point of adding it.
 - **M10 — Play Store release**: signing key, store listing, screenshots,
   privacy policy page, closed testing track before production.
