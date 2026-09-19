@@ -1,12 +1,10 @@
 package com.maxtasy.wakku.ringing
 
-import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -17,8 +15,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import com.maxtasy.wakku.R
 import com.maxtasy.wakku.WakkuApplication
 import com.maxtasy.wakku.data.Alarm
@@ -27,8 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
 
 /** Rings an alarm: loops the current alarm sound + vibration and shows a full-screen notification. */
 class RingingService : Service() {
@@ -103,6 +97,15 @@ class RingingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        // Opens the ringing screen already in the shake challenge; the screen
+        // itself silences the alarm on entering it, same as tapping its Stop button.
+        val stopIntent = PendingIntent.getActivity(
+            this,
+            (alarmId + REQUEST_CODE_STOP_OFFSET).toInt(),
+            RingingActivity.intent(this, alarmId, hour, minute, label, numberOfShakes, startChallenge = true),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle("%02d:%02d".format(hour, minute))
@@ -112,10 +115,8 @@ class RingingService : Service() {
             .setOngoing(true)
             .setContentIntent(fullScreenIntent)
             .setFullScreenIntent(fullScreenIntent, true)
-            // No quick "Stop" action here on purpose: stopping has to go
-            // through the shake challenge in RingingActivity, not a single
-            // tap from the notification shade.
             .addAction(0, "Snooze", snoozeIntent)
+            .addAction(0, "Stop", stopIntent)
             .build()
     }
 
@@ -171,30 +172,10 @@ class RingingService : Service() {
             dao.setEnabled(alarmId, true)
             val snoozeMinutes = alarm.snoozeMinutes ?: app.settings.current().snoozeMinutes
             val triggerAt = System.currentTimeMillis() + snoozeMinutes * 60_000L
+            // scheduleAt also updates the persistent "next alarm" notification.
             AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt)
-            showSnoozedNotification(alarmId, triggerAt)
         }
     }
-
-    private fun showSnoozedNotification(alarmId: Long, triggerAtMillis: Long) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
-        val triggerTime = Instant.ofEpochMilli(triggerAtMillis).atZone(ZoneId.systemDefault()).toLocalTime()
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_alarm)
-            .setContentTitle("Snoozed")
-            .setContentText("Rings again at %02d:%02d".format(triggerTime.hour, triggerTime.minute))
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .build()
-        NotificationManagerCompat.from(this).notify(snoozedNotificationId(alarmId), notification)
-    }
-
-    private fun snoozedNotificationId(alarmId: Long): Int =
-        (SNOOZED_NOTIFICATION_ID_OFFSET + alarmId).toInt()
 
     companion object {
         const val ACTION_STOP = "com.maxtasy.wakku.action.STOP_RINGING"
@@ -208,7 +189,7 @@ class RingingService : Service() {
         const val CHANNEL_ID = "alarms"
         private const val NOTIFICATION_ID = 1
         private const val REQUEST_CODE_SNOOZE_OFFSET = 1_000_000
-        private const val SNOOZED_NOTIFICATION_ID_OFFSET = 2_000_000
+        private const val REQUEST_CODE_STOP_OFFSET = 3_000_000
         private val VIBRATION_PATTERN = longArrayOf(0, 1000, 1000)
 
         fun intent(context: Context, alarm: Alarm): Intent =

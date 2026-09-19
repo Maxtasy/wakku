@@ -28,6 +28,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -39,6 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxtasy.wakku.settings.AppSettings
 import com.maxtasy.wakku.shake.ShakeDetector
 import com.maxtasy.wakku.ui.theme.WakkuTheme
+import kotlinx.coroutines.delay
+import java.time.LocalTime
 
 /** Shows over the lock screen when an alarm fires, via RingingService's full-screen notification intent. */
 class RingingActivity : ComponentActivity() {
@@ -50,6 +53,9 @@ class RingingActivity : ComponentActivity() {
     // some other way (completed, or the explicit "Snooze instead" tap).
     private var shakeChallengeActive = false
     private var shakeChallengeResolved = false
+
+    // Set by the notification's "Stop" action to jump straight into the challenge.
+    private var startChallenge by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +73,7 @@ class RingingActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         alarmId = intent.getLongExtra(RingingService.EXTRA_ALARM_ID, -1L)
+        startChallenge = intent.getBooleanExtra(EXTRA_START_CHALLENGE, false)
         val hour = intent.getIntExtra(RingingService.EXTRA_HOUR, 0)
         val minute = intent.getIntExtra(RingingService.EXTRA_MINUTE, 0)
         val label = intent.getStringExtra(RingingService.EXTRA_LABEL).orEmpty()
@@ -81,6 +88,8 @@ class RingingActivity : ComponentActivity() {
                 RingingScreen(
                     ringingId = ringingId,
                     alarmId = alarmId,
+                    currentTime = rememberCurrentTime(),
+                    startChallenge = startChallenge,
                     hour = hour,
                     minute = minute,
                     label = label,
@@ -106,6 +115,11 @@ class RingingActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_START_CHALLENGE, false)) startChallenge = true
+    }
+
     override fun onStop() {
         super.onStop()
         // Walked away (back/home/task switch) mid-challenge without finishing
@@ -126,6 +140,8 @@ class RingingActivity : ComponentActivity() {
     }
 
     companion object {
+        const val EXTRA_START_CHALLENGE = "extra_start_challenge"
+
         fun intent(
             context: Context,
             alarmId: Long,
@@ -133,6 +149,7 @@ class RingingActivity : ComponentActivity() {
             minute: Int,
             label: String,
             numberOfShakes: Int,
+            startChallenge: Boolean = false,
         ): Intent =
             Intent(context, RingingActivity::class.java).apply {
                 putExtra(RingingService.EXTRA_ALARM_ID, alarmId)
@@ -140,6 +157,7 @@ class RingingActivity : ComponentActivity() {
                 putExtra(RingingService.EXTRA_MINUTE, minute)
                 putExtra(RingingService.EXTRA_LABEL, label)
                 putExtra(RingingService.EXTRA_NUMBER_OF_SHAKES, numberOfShakes)
+                putExtra(EXTRA_START_CHALLENGE, startChallenge)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
     }
@@ -155,6 +173,8 @@ class RingingActivity : ComponentActivity() {
 internal fun RingingScreen(
     ringingId: Long?,
     alarmId: Long,
+    currentTime: LocalTime,
+    startChallenge: Boolean,
     hour: Int,
     minute: Int,
     label: String,
@@ -167,6 +187,14 @@ internal fun RingingScreen(
 ) {
     var isShaking by rememberSaveable { mutableStateOf(false) }
     var shakeCount by rememberSaveable { mutableIntStateOf(0) }
+
+    LaunchedEffect(startChallenge) {
+        if (startChallenge && !isShaking) {
+            onStopTapped()
+            isShaking = true
+            shakeCount = 0
+        }
+    }
 
     // Only auto-close for *external* dismissal (e.g. the notification's own
     // actions) — once we're in the challenge, we silenced things ourselves.
@@ -192,13 +220,19 @@ internal fun RingingScreen(
                 Spacer(Modifier.height(48.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "%02d:%02d".format(hour, minute),
+                        text = "%02d:%02d".format(currentTime.hour, currentTime.minute),
                         style = MaterialTheme.typography.displayLarge,
                     )
-                    if (label.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(text = label, style = MaterialTheme.typography.titleMedium)
-                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = label.ifBlank { "Alarm" },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Set for %02d:%02d".format(hour, minute),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -269,4 +303,16 @@ private fun ShakeChallenge(
             Text("Snooze instead")
         }
     }
+}
+
+@Composable
+private fun rememberCurrentTime(): LocalTime {
+    var now by remember { mutableStateOf(LocalTime.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalTime.now()
+            delay(60_000L - System.currentTimeMillis() % 60_000L)
+        }
+    }
+    return now
 }

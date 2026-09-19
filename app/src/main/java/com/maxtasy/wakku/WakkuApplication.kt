@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import com.maxtasy.wakku.data.WakkuDatabase
 import com.maxtasy.wakku.ringing.RingingService
 import com.maxtasy.wakku.scheduling.AlarmScheduler
+import com.maxtasy.wakku.scheduling.NextAlarmNotifier
 import com.maxtasy.wakku.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ class WakkuApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         createAlarmNotificationChannel()
+        NextAlarmNotifier.createChannel(this)
         // Covers app updates and force-stops, which don't go through BootReceiver.
         CoroutineScope(Dispatchers.IO).launch {
             val scheduler = AlarmScheduler(applicationContext)

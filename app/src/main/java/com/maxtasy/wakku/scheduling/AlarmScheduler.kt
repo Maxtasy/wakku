@@ -38,10 +38,12 @@ class AlarmScheduler(private val context: Context) {
             AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent),
             firingOperation(alarm.id),
         )
+        NextAlarmNotifier.record(context, alarm.id, triggerAtMillis)
     }
 
     fun cancel(alarm: Alarm) {
         alarmManager.cancel(firingOperation(alarm.id))
+        NextAlarmNotifier.remove(context, alarm.id)
     }
 
     private fun firingOperation(alarmId: Long): PendingIntent =

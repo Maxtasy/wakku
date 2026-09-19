@@ -13,7 +13,10 @@ original pitch.
 
 ## Status
 
-M0–M8 complete and pushed to `main`. **Next up: M9 (dogfood).**
+M0–M8 complete and pushed to `main`. **Next up: M9 (dogfood) — in progress.**
+First real overnight alarm worked. Follow-ups from day one (persistent
+"next alarm" notification, notification Stop action, live clock on the ringing
+screen) are done; see the decisions below.
 
 - M0 Project setup ✓
 - M1 Alarm CRUD ✓
@@ -53,7 +56,7 @@ M0–M8 complete and pushed to `main`. **Next up: M9 (dogfood).**
 
 - `alarms/` — alarm list + create/edit screens, ViewModels
 - `data/` — Room entity/DAO/database (`Alarm`, `AlarmDao`, `WakkuDatabase`, `Converters`)
-- `scheduling/` — `AlarmScheduler` (wraps `AlarmManager.setAlarmClock`), `AlarmReceiver` (fires alarms), `BootReceiver`
+- `scheduling/` — `AlarmScheduler` (wraps `AlarmManager.setAlarmClock`), `AlarmReceiver` (fires alarms), `BootReceiver`, `NextAlarmNotifier` (persistent "Next alarm" notification)
 - `ringing/` — `RingingService` (foreground service: sound/vibration/notification), `RingingActivity` (full-screen UI, shake-challenge state machine), `RingingController` (shared StateFlow so the Activity can close itself if the notification's own action ends things externally)
 - `shake/` — `ShakeCounter` (pure, unit-testable peak-detection logic) + `ShakeDetector` (SensorEventListener wrapper around it)
 - `settings/` — `AppSettings`, `SettingsRepository` (DataStore), `SettingsViewModel`, `SettingsScreen`, `SettingsComponents` (shared `SettingSlider`/`VibrationSwitchRow`/`SoundPickerRow`, reused by `AlarmEditScreen` for per-alarm overrides)
@@ -72,11 +75,33 @@ framework classes.
   earlier assumption that `setAlarmClock` was fully exempt from the
   exact-alarm permission was wrong, confirmed by a real crash log during M2
   testing.
-- **Notification's "Stop" quick-action was deliberately removed** (M6) — it
-  let people silence the alarm with one tap from the notification shade,
-  completely bypassing the shake challenge. Only "Snooze" remains as a
-  notification quick-action; Stop only exists inside the full
-  `RingingActivity` screen.
+- **Notification "Stop" action** (added in M9): the ringing notification has
+  "Snooze" and "Stop". An earlier version (M6) removed Stop because it
+  silenced the alarm with one tap and bypassed the shake challenge. The
+  current Stop is an *activity* PendingIntent
+  (`RingingActivity.EXTRA_START_CHALLENGE`) that opens `RingingActivity`,
+  which silences the alarm and enters the shake challenge immediately — same
+  as tapping its own Stop button, so the challenge is never bypassed (walking
+  away still snoozes). Needed because with the phone unlocked the alarm shows
+  only as a heads-up notification, not the full-screen screen. Its request
+  code differs from the full-screen intent's (`REQUEST_CODE_STOP_OFFSET`),
+  since PendingIntents that differ only in extras would otherwise collapse
+  into one. `RingingActivity` is `singleTask`, so `onNewIntent` also handles
+  the flag.
+- **Persistent "Next alarm" notification** (M9): `NextAlarmNotifier` posts a
+  low-importance ongoing notification (own `next_alarm` channel) showing the
+  soonest pending trigger time. It replaced the old one-shot "Snoozed"
+  notification, which never updated and lingered after the alarm was stopped.
+  `AlarmScheduler.scheduleAt`/`cancel` record/remove each alarm's trigger time
+  in SharedPreferences and refresh the notification, so snoozes, disabling,
+  deleting and one-time alarms firing all keep it correct. It also serves as
+  the "alarm is set" indicator when the status-bar icon doesn't show (it did
+  appear once an alarm was enabled after this change, on the POCO).
+  Known gap: a snooze pending across a reboot is rescheduled by
+  `BootReceiver` to the regular time, not the snooze time.
+- **Ringing screen** shows the *current* time (updates each minute), the alarm
+  label (falls back to "Alarm" when blank) and a small "Set for HH:mm" line
+  with the alarm's own time.
 - **Snooze re-enables the alarm** in the DB. `AlarmReceiver` disables
   one-time alarms the instant they first ring (so the "done when" state is
   correct if the user never interacts again); without re-enabling on
@@ -193,6 +218,13 @@ picks this up next:
   alarm a minute out, etc.) needs `MSYS_NO_PATHCONV=1` prefixed on
   Git-Bash `adb push` / `adb shell run-as ...` calls, or leading `/data/...`
   paths get mangled into Windows paths.
+- Quick ring test without waiting: force-stop the app, pull `wakku.db` (plus
+  `-wal`/`-shm`) via `adb exec-out "run-as com.maxtasy.wakku cat databases/..."`,
+  set the alarm's hour/minute a couple of minutes out with Python's `sqlite3`
+  (`pragma wal_checkpoint(truncate)`), push it via `/data/local/tmp` and
+  `run-as ... cp`, delete `-wal`/`-shm`, relaunch. The phone must be
+  *unlocked* to see the heads-up notification path (locked shows the full
+  screen). `adb` lives in `~/AppData/Local/Android/Sdk/platform-tools`.
 - After pushing a modified `.db` file into place, **force-stop the app
   first** (not just after) — editing the DB file while the app process is
   still alive can leave it running on stale in-memory state that later

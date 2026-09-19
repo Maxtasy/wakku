@@ -12,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalTime
 
 /**
  * Covers the pre-shake Stop/Snooze screen and the Stop -> shake-challenge
@@ -29,6 +30,8 @@ class RingingScreenTest {
     private fun setContent(
         ringingId: Long? = 1L,
         alarmId: Long = 1L,
+        currentTime: LocalTime = LocalTime.of(6, 45),
+        startChallenge: Boolean = false,
         hour: Int = 7,
         minute: Int = 5,
         label: String = "",
@@ -44,6 +47,8 @@ class RingingScreenTest {
                 RingingScreen(
                     ringingId = ringingId,
                     alarmId = alarmId,
+                    currentTime = currentTime,
+                    startChallenge = startChallenge,
                     hour = hour,
                     minute = minute,
                     label = label,
@@ -59,9 +64,19 @@ class RingingScreenTest {
     }
 
     @Test
-    fun showsFormattedTimeWithLeadingZeros() {
-        setContent(hour = 7, minute = 5)
-        composeTestRule.onNodeWithText("07:05").assertIsDisplayed()
+    fun showsCurrentTimeAndAlarmTimeWithLeadingZeros() {
+        setContent(currentTime = LocalTime.of(6, 5), hour = 7, minute = 5)
+        composeTestRule.onNodeWithText("06:05").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Set for 07:05").assertIsDisplayed()
+    }
+
+    @Test
+    fun startChallengeSkipsStraightToShakeScreen() {
+        var stopTapped = false
+        setContent(startChallenge = true, requiredShakes = 5, onStopTapped = { stopTapped = true })
+        composeTestRule.waitForIdle()
+        assertTrue(stopTapped)
+        composeTestRule.onNodeWithText("0 / 5").assertIsDisplayed()
     }
 
     @Test
@@ -71,9 +86,9 @@ class RingingScreenTest {
     }
 
     @Test
-    fun hidesLabelWhenBlank() {
+    fun fallsBackToGenericLabelWhenBlank() {
         setContent(label = "")
-        composeTestRule.onNodeWithText("Wake up").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Alarm").assertIsDisplayed()
     }
 
     @Test
