@@ -40,6 +40,11 @@ class RingingService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            ACTION_DISMISS_SNOOZE -> {
+                dismissSnooze(intent.getLongExtra(EXTRA_ALARM_ID, -1L))
+                stopSelf()
+                return START_NOT_STICKY
+            }
             ACTION_SNOOZE -> {
                 snooze(intent.getLongExtra(EXTRA_ALARM_ID, -1L))
                 stopSelf()
@@ -173,13 +178,31 @@ class RingingService : Service() {
             val snoozeMinutes = alarm.snoozeMinutes ?: app.settings.current().snoozeMinutes
             val triggerAt = System.currentTimeMillis() + snoozeMinutes * 60_000L
             // scheduleAt also updates the persistent "next alarm" notification.
-            AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt)
+            AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt, snoozed = true)
+        }
+    }
+
+    /** The shake challenge was completed while snoozed: drop the snooze and fall back to the alarm's normal schedule. */
+    private fun dismissSnooze(alarmId: Long) {
+        if (alarmId == -1L) return
+        scope.launch {
+            val app = application as WakkuApplication
+            val dao = app.database.alarmDao()
+            val alarm = dao.getById(alarmId) ?: return@launch
+            val scheduler = AlarmScheduler(applicationContext)
+            if (alarm.repeatDays.isEmpty()) {
+                dao.setEnabled(alarmId, false)
+                scheduler.cancel(alarm)
+            } else {
+                scheduler.schedule(alarm)
+            }
         }
     }
 
     companion object {
         const val ACTION_STOP = "com.maxtasy.wakku.action.STOP_RINGING"
         const val ACTION_SNOOZE = "com.maxtasy.wakku.action.SNOOZE"
+        const val ACTION_DISMISS_SNOOZE = "com.maxtasy.wakku.action.DISMISS_SNOOZE"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_HOUR = "extra_hour"
         const val EXTRA_MINUTE = "extra_minute"

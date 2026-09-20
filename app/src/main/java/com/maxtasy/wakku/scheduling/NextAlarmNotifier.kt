@@ -12,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.maxtasy.wakku.MainActivity
 import com.maxtasy.wakku.R
+import com.maxtasy.wakku.ringing.RingingActivity
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -29,6 +30,7 @@ object NextAlarmNotifier {
     const val CHANNEL_ID = "next_alarm"
     private const val NOTIFICATION_ID = 2
     private const val PREFS = "next_alarm_triggers"
+    private const val REQUEST_CODE_DISMISS_OFFSET = 4_000_000
 
     fun createChannel(context: Context) {
         val channel = NotificationChannel(
@@ -43,8 +45,8 @@ object NextAlarmNotifier {
     }
 
     @Synchronized
-    fun record(context: Context, alarmId: Long, triggerAtMillis: Long) {
-        prefs(context).edit().putLong(alarmId.toString(), triggerAtMillis).apply()
+    fun record(context: Context, alarmId: Long, triggerAtMillis: Long, snoozed: Boolean = false) {
+        prefs(context).edit().putString(alarmId.toString(), "$triggerAtMillis,${if (snoozed) 1 else 0}").apply()
         refresh(context)
     }
 
@@ -57,7 +59,7 @@ object NextAlarmNotifier {
     private fun refresh(context: Context) {
         val manager = NotificationManagerCompat.from(context)
         val now = System.currentTimeMillis()
-        val next = prefs(context).all.values.filterIsInstance<Long>().filter { it > now }.minOrNull()
+        val next = pending(context).filter { it.triggerAtMillis > now }.minByOrNull { it.triggerAtMillis }
         if (next == null) {
             manager.cancel(NOTIFICATION_ID)
             return
@@ -73,19 +75,40 @@ object NextAlarmNotifier {
             Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val timeText = format(next.triggerAtMillis)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_alarm)
-            .setContentTitle("Next alarm")
-            .setContentText(format(next))
+            .setContentTitle(if (next.snoozed) "Alarm snoozed" else "Next alarm")
+            .setContentText(if (next.snoozed) "Rings again at $timeText" else timeText)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setContentIntent(openApp)
-            .build()
-        manager.notify(NOTIFICATION_ID, notification)
+        if (next.snoozed) {
+            // The alarm isn't ringing, so there's no other way into the shake
+            // challenge until it rings again; finishing it cancels the snooze.
+            val stop = PendingIntent.getActivity(
+                context,
+                (next.alarmId + REQUEST_CODE_DISMISS_OFFSET).toInt(),
+                RingingActivity.dismissSnoozeIntent(context, next.alarmId),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.addAction(0, "Stop", stop)
+        }
+        manager.notify(NOTIFICATION_ID, builder.build())
     }
+
+    private class Pending(val alarmId: Long, val triggerAtMillis: Long, val snoozed: Boolean)
+
+    private fun pending(context: Context): List<Pending> =
+        prefs(context).all.mapNotNull { (key, value) ->
+            val alarmId = key.toLongOrNull() ?: return@mapNotNull null
+            val parts = (value as? String)?.split(',') ?: return@mapNotNull null
+            val triggerAt = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+            Pending(alarmId, triggerAt, parts.getOrNull(1) == "1")
+        }
 
     private fun format(triggerAtMillis: Long): String {
         val dateTime = Instant.ofEpochMilli(triggerAtMillis).atZone(ZoneId.systemDefault())

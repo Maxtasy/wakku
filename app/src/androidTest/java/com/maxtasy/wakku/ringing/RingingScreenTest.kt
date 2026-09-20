@@ -32,6 +32,7 @@ class RingingScreenTest {
         alarmId: Long = 1L,
         currentTime: LocalTime = LocalTime.of(6, 45),
         startChallenge: Boolean = false,
+        dismissingSnooze: Boolean = false,
         hour: Int = 7,
         minute: Int = 5,
         label: String = "",
@@ -49,6 +50,7 @@ class RingingScreenTest {
                     alarmId = alarmId,
                     currentTime = currentTime,
                     startChallenge = startChallenge,
+                    dismissingSnooze = dismissingSnooze,
                     hour = hour,
                     minute = minute,
                     label = label,
@@ -77,6 +79,26 @@ class RingingScreenTest {
         composeTestRule.waitForIdle()
         assertTrue(stopTapped)
         composeTestRule.onNodeWithText("0 / 5").assertIsDisplayed()
+    }
+
+    @Test
+    fun dismissingSnoozeDoesNotAutoFinishAndOffersCancel() {
+        var finished = false
+        var abandoned = false
+        setContent(
+            ringingId = null,
+            startChallenge = true,
+            dismissingSnooze = true,
+            requiredShakes = 4,
+            onFinish = { finished = true },
+            onChallengeAbandoned = { abandoned = true },
+        )
+        composeTestRule.waitForIdle()
+        assertFalse(finished)
+        composeTestRule.onNodeWithText("0 / 4").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Snooze instead").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertTrue(abandoned)
     }
 
     @Test

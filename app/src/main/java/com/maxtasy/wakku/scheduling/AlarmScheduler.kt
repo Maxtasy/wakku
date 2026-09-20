@@ -27,7 +27,7 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /** Schedules at an explicit time, e.g. "snooze N minutes from now" rather than the next matching day. */
-    fun scheduleAt(alarm: Alarm, triggerAtMillis: Long) {
+    fun scheduleAt(alarm: Alarm, triggerAtMillis: Long, snoozed: Boolean = false) {
         val showIntent = PendingIntent.getActivity(
             context,
             alarm.id.toInt(),
@@ -38,7 +38,7 @@ class AlarmScheduler(private val context: Context) {
             AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent),
             firingOperation(alarm.id),
         )
-        NextAlarmNotifier.record(context, alarm.id, triggerAtMillis)
+        NextAlarmNotifier.record(context, alarm.id, triggerAtMillis, snoozed)
     }
 
     fun cancel(alarm: Alarm) {

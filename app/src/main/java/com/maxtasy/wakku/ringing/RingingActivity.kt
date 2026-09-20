@@ -37,10 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.maxtasy.wakku.WakkuApplication
 import com.maxtasy.wakku.settings.AppSettings
 import com.maxtasy.wakku.shake.ShakeDetector
 import com.maxtasy.wakku.ui.theme.WakkuTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalTime
 
 /** Shows over the lock screen when an alarm fires, via RingingService's full-screen notification intent. */
@@ -56,6 +61,11 @@ class RingingActivity : ComponentActivity() {
 
     // Set by the notification's "Stop" action to jump straight into the challenge.
     private var startChallenge by mutableStateOf(false)
+
+    // Opened from the "Next alarm" notification while an alarm is snoozed:
+    // nothing is ringing, and finishing the challenge cancels the pending snooze.
+    private var dismissingSnooze = false
+    private var numberOfShakes by mutableIntStateOf(AppSettings.DEFAULT_NUMBER_OF_SHAKES)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,13 +84,15 @@ class RingingActivity : ComponentActivity() {
 
         alarmId = intent.getLongExtra(RingingService.EXTRA_ALARM_ID, -1L)
         startChallenge = intent.getBooleanExtra(EXTRA_START_CHALLENGE, false)
+        dismissingSnooze = intent.getBooleanExtra(EXTRA_DISMISS_SNOOZE, false)
         val hour = intent.getIntExtra(RingingService.EXTRA_HOUR, 0)
         val minute = intent.getIntExtra(RingingService.EXTRA_MINUTE, 0)
         val label = intent.getStringExtra(RingingService.EXTRA_LABEL).orEmpty()
-        val numberOfShakes = intent.getIntExtra(
+        numberOfShakes = intent.getIntExtra(
             RingingService.EXTRA_NUMBER_OF_SHAKES,
             AppSettings.DEFAULT_NUMBER_OF_SHAKES,
         )
+        if (dismissingSnooze) loadAlarmAndStartChallenge()
 
         setContent {
             WakkuTheme {
@@ -90,6 +102,7 @@ class RingingActivity : ComponentActivity() {
                     alarmId = alarmId,
                     currentTime = rememberCurrentTime(),
                     startChallenge = startChallenge,
+                    dismissingSnooze = dismissingSnooze,
                     hour = hour,
                     minute = minute,
                     label = label,
@@ -97,17 +110,22 @@ class RingingActivity : ComponentActivity() {
                     onFinish = ::finish,
                     onSnooze = { sendServiceAction(RingingService.ACTION_SNOOZE); finish() },
                     onStopTapped = {
-                        sendServiceAction(RingingService.ACTION_STOP)
-                        shakeChallengeActive = true
-                        shakeChallengeResolved = false
+                        // Nothing is ringing while dismissing a snooze, and
+                        // leaving mid-challenge must keep the existing snooze.
+                        if (!dismissingSnooze) {
+                            sendServiceAction(RingingService.ACTION_STOP)
+                            shakeChallengeActive = true
+                            shakeChallengeResolved = false
+                        }
                     },
                     onChallengeCompleted = {
                         shakeChallengeResolved = true
+                        if (dismissingSnooze) sendServiceAction(RingingService.ACTION_DISMISS_SNOOZE)
                         finish()
                     },
                     onChallengeAbandoned = {
                         shakeChallengeResolved = true
-                        sendServiceAction(RingingService.ACTION_SNOOZE)
+                        if (!dismissingSnooze) sendServiceAction(RingingService.ACTION_SNOOZE)
                         finish()
                     },
                 )
@@ -131,6 +149,22 @@ class RingingActivity : ComponentActivity() {
         }
     }
 
+    private fun loadAlarmAndStartChallenge() {
+        lifecycleScope.launch {
+            val app = application as WakkuApplication
+            val shakes = withContext(Dispatchers.IO) {
+                val alarm = app.database.alarmDao().getById(alarmId) ?: return@withContext null
+                alarm.numberOfShakes ?: app.settings.current().numberOfShakes
+            }
+            if (shakes == null) {
+                finish()
+            } else {
+                numberOfShakes = shakes
+                startChallenge = true
+            }
+        }
+    }
+
     private fun sendServiceAction(action: String) {
         startService(
             Intent(this, RingingService::class.java)
@@ -141,6 +175,15 @@ class RingingActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_START_CHALLENGE = "extra_start_challenge"
+        const val EXTRA_DISMISS_SNOOZE = "extra_dismiss_snooze"
+
+        /** Opens the shake challenge for an alarm that is snoozed (not ringing). */
+        fun dismissSnoozeIntent(context: Context, alarmId: Long): Intent =
+            Intent(context, RingingActivity::class.java).apply {
+                putExtra(RingingService.EXTRA_ALARM_ID, alarmId)
+                putExtra(EXTRA_DISMISS_SNOOZE, true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
 
         fun intent(
             context: Context,
@@ -175,6 +218,7 @@ internal fun RingingScreen(
     alarmId: Long,
     currentTime: LocalTime,
     startChallenge: Boolean,
+    dismissingSnooze: Boolean,
     hour: Int,
     minute: Int,
     label: String,
@@ -199,7 +243,7 @@ internal fun RingingScreen(
     // Only auto-close for *external* dismissal (e.g. the notification's own
     // actions) — once we're in the challenge, we silenced things ourselves.
     LaunchedEffect(ringingId, isShaking) {
-        if (!isShaking && ringingId != alarmId) onFinish()
+        if (!isShaking && !dismissingSnooze && ringingId != alarmId) onFinish()
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -208,9 +252,12 @@ internal fun RingingScreen(
                 shakeCount = shakeCount,
                 requiredShakes = requiredShakes,
                 onShake = { shakeCount++ },
+                cancelLabel = if (dismissingSnooze) "Cancel" else "Snooze instead",
                 onCancel = onChallengeAbandoned,
                 onComplete = onChallengeCompleted,
             )
+        } else if (dismissingSnooze) {
+            // Blank until the alarm's shake count has loaded and the challenge starts.
         } else {
             Column(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -265,6 +312,7 @@ private fun ShakeChallenge(
     shakeCount: Int,
     requiredShakes: Int,
     onShake: () -> Unit,
+    cancelLabel: String,
     onCancel: () -> Unit,
     onComplete: () -> Unit,
 ) {
@@ -300,7 +348,7 @@ private fun ShakeChallenge(
         )
         Spacer(Modifier.height(40.dp))
         TextButton(onClick = onCancel) {
-            Text("Snooze instead")
+            Text(cancelLabel)
         }
     }
 }

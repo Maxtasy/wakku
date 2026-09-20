@@ -99,6 +99,19 @@ framework classes.
   appear once an alarm was enabled after this change, on the POCO).
   Known gap: a snooze pending across a reboot is rescheduled by
   `BootReceiver` to the regular time, not the snooze time.
+- **Snoozed alarms have a way into the challenge** (M9): while an alarm is
+  snoozed, the "Next alarm" notification switches to "Alarm snoozed / Rings
+  again at HH:mm" and gains a **Stop** action (only visible when the
+  notification is expanded). It opens `RingingActivity` with
+  `EXTRA_DISMISS_SNOOZE` (`RingingActivity.dismissSnoozeIntent`): nothing is
+  ringing, so it skips `ACTION_STOP`, loads the alarm's shake count from the
+  DB, and starts the challenge. Completing it sends
+  `RingingService.ACTION_DISMISS_SNOOZE` (one-time alarm: disable + cancel;
+  repeating: `schedule()` back to the normal next occurrence). Cancelling or
+  leaving (Home/back) does nothing — the existing snooze stays untouched, it
+  must not re-snooze and push the time out. `NextAlarmNotifier` stores each
+  trigger as `"millis,snoozed(0/1)"` in prefs; `AlarmScheduler.scheduleAt` has
+  a `snoozed` flag that only `RingingService.snooze` sets.
 - **Ringing screen** shows the *current* time (updates each minute), the alarm
   label (falls back to "Alarm" when blank) and a small "Set for HH:mm" line
   with the alarm's own time.
