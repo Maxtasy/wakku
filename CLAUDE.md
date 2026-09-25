@@ -13,10 +13,12 @@ original pitch.
 
 ## Status
 
-M0–M8 complete and pushed to `main`. **Next up: M9 (dogfood) — in progress.**
-First real overnight alarm worked. Follow-ups from day one (persistent
-"next alarm" notification, notification Stop action, live clock on the ringing
-screen) are done; see the decisions below.
+M0–M9 complete (dogfooding finished; the app works as intended). Now on
+**v1.1.0** (semver, see `CHANGELOG.md`; `versionName`/`versionCode` in
+`app/build.gradle.kts`): new dark-only theme shared with the Expense Tracker
+app, save always enables the alarm, tapping the big time opens the picker,
+new shaking-bell app icon. Wear OS and a home-screen widget were considered
+and explicitly ruled out by the user. **Next up: M10 (Play Store).**
 
 - M0 Project setup ✓
 - M1 Alarm CRUD ✓
@@ -35,6 +37,8 @@ screen) are done; see the decisions below.
   pass, and the battery-optimization exemption prompt)
 - M8 Testing & stability ✓ (unit tests for `ShakeCounter`/`AlarmTiming`;
   Compose UI tests for `AlarmEditScreen`/`RingingActivity`'s ringing screen)
+- M9 Dogfood ✓ (the battery-optimization exemption kept alarms alive
+  overnight on the MIUI phone)
 
 ## Tech stack
 
@@ -60,7 +64,16 @@ screen) are done; see the decisions below.
 - `ringing/` — `RingingService` (foreground service: sound/vibration/notification), `RingingActivity` (full-screen UI, shake-challenge state machine), `RingingController` (shared StateFlow so the Activity can close itself if the notification's own action ends things externally)
 - `shake/` — `ShakeCounter` (pure, unit-testable peak-detection logic) + `ShakeDetector` (SensorEventListener wrapper around it)
 - `settings/` — `AppSettings`, `SettingsRepository` (DataStore), `SettingsViewModel`, `SettingsScreen`, `SettingsComponents` (shared `SettingSlider`/`VibrationSwitchRow`/`SoundPickerRow`, reused by `AlarmEditScreen` for per-alarm overrides)
-- `ui/theme/` — Material3 color scheme, deliberately filled out beyond the 5 default roles (a partially-filled scheme leaks Material3's baseline purple into unset roles like Switch thumbs / FAB containers — happened once already, fixed in M3). `tertiary`/`error`/`inverseSurface`/etc. roles are still left at Material3 defaults in both light and dark — fine for now since nothing renders an error state yet, but fill them in if that changes.
+- App icon (`res/drawable/ic_launcher_foreground.xml`, v1.1.0): tilted bell
+  with shake marks, in the Expense Tracker *logo's* colors (indigo `#6366F1`,
+  green `#34D399`, sky blue `#38BDF8`; sky blue isn't in the app theme). It's
+  drawn in a 240-unit sketch space and fitted into the 108dp canvas with a
+  group transform, so to resize it, change `scaleX`/`scaleY` (0.62 was picked
+  on-device next to the Expense Tracker icon, since MIUI crops adaptive icons
+  tightly). The same drawable is the `<monochrome>` themed icon, and
+  `ic_notification_alarm.xml` reuses the bell path. There's no 512px Play
+  Store PNG yet (M10).
+- `ui/theme/` — **dark-only** Material3 color scheme (v1.1.0), palette taken from the Expense Tracker web app's Tailwind `@theme` tokens (`#0b0e14` background, `#4f46e5` indigo accent, amber/red/green). Every role is set explicitly — a partially-filled scheme leaks Material3's baseline purple into unset roles (happened once in M3). `primary` is the lighter `#6366f1` (accent-hover), not `#4f46e5`, because `primary` is also TextButton text color and `#4f46e5` is only ~3:1 on the background; the exact accent is `primaryContainer` (FAB). Amber `tertiary` is used for warnings (battery banner). There's no `values-night`; `MainActivity` forces `SystemBarStyle.dark` so status-bar icons stay white in system light mode.
 
 `AlarmTiming` (in `scheduling/`) holds `AlarmScheduler`'s next-trigger-time
 math as a pure `nextTriggerMillis(alarm, now, zone)` function — mirrors the
@@ -266,9 +279,5 @@ picks this up next:
 
 ## Remaining milestones (from the original blueprint)
 
-- **M9 — Dogfood**: two weeks of real daily use, phone as primary alarm,
-  keep a backup alarm until confidence is there. Worth specifically watching
-  whether the battery-optimization exemption (M7) actually keeps `RingingService`
-  alive overnight on this MIUI device, since that was the whole point of adding it.
 - **M10 — Play Store release**: signing key, store listing, screenshots,
   privacy policy page, closed testing track before production.

@@ -1,11 +1,22 @@
 <!-- Status-bar icon: Android masks this to a single color, so only the alpha
-     channel of the path matters, not android:fillColor's actual value. -->
+     channel of the path matters, not android:fillColor's actual value.
+     Same tilted bell as the launcher icon (without the shake marks, which
+     are too fine at this size), from the same 240-unit sketch space. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M12,20 a7,7 0,1 0,0 -14 a7,7 0,1 0,0 14 Z M12.75,9 L12.75,12.4 L15.5,14 L14.75,15.3 L11.25,13.25 L11.25,9 Z" />
+    <group
+        android:pivotX="120"
+        android:pivotY="92"
+        android:scaleX="0.3"
+        android:scaleY="0.3"
+        android:rotation="-14"
+        android:translateX="-108"
+        android:translateY="-80">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M120,64 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 M120,66 c-14,0 -22,11 -22,24 v14 l-7,9 h58 l-7,-9 v-14 c0,-13 -8,-24 -22,-24 z M120,119 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+    </group>
 </vector>

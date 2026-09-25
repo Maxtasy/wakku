@@ -1,5 +1,6 @@
 package com.maxtasy.wakku.alarms
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -106,6 +108,11 @@ fun AlarmEditScreen(
             Text(
                 text = "%02d:%02d".format(hour, minute),
                 style = MaterialTheme.typography.displayLarge,
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable(onClickLabel = "Change time", role = Role.Button) { showTimePicker = true }
+                    .padding(horizontal = 12.dp)
+                    .testTag("alarmTimeText"),
             )
             TextButton(onClick = { showTimePicker = true }) {
                 Text("Change time")

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -108,8 +109,8 @@ private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, 
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
         ),
     ) {
         Row(
@@ -125,7 +126,11 @@ private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, 
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = onFix, modifier = Modifier.align(Alignment.Start)) {
+                TextButton(
+                    onClick = onFix,
+                    modifier = Modifier.align(Alignment.Start),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary),
+                ) {
                     Text("Fix it")
                 }
             }

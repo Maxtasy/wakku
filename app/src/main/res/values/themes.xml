@@ -1,4 +1,7 @@
 <resources>
-    <!-- Window-level theme only; Compose owns all in-app theming (see ui/theme/Theme.kt). -->
-    <style name="Theme.Wakku" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Window-level theme only; Compose owns all in-app theming (see ui/theme/Theme.kt).
+         Dark-only, so there's no values-night variant. -->
+    <style name="Theme.Wakku" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/wakku_background</item>
+    </style>
 </resources>

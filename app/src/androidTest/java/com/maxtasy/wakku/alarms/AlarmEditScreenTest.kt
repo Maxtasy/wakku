@@ -98,6 +98,14 @@ class AlarmEditScreenTest {
     }
 
     @Test
+    fun tappingTimeOpensTimePicker() {
+        setContent(hour = 7, minute = 5)
+        composeTestRule.onNodeWithText("OK").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("alarmTimeText").performClick()
+        composeTestRule.onNodeWithText("OK").assertIsDisplayed()
+    }
+
+    @Test
     fun customSettingsControlsHiddenByDefault() {
         setContent(useCustomSettings = false)
         composeTestRule.onNodeWithText("Snooze time").assertDoesNotExist()

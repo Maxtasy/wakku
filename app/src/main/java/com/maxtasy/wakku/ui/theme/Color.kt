@@ -2,37 +2,40 @@ package com.maxtasy.wakku.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Matches the palette in the project blueprint (night sky + alarm orange).
-val WakkuOrangeLight = Color(0xFFE8542A)
-val WakkuOrangeDark = Color(0xFFFF7A4D)
-val WakkuOnOrangeLight = Color(0xFFFFFFFF)
-val WakkuOnOrangeDark = Color(0xFF1A0F08)
-val WakkuOrangeContainerLight = Color(0xFFFCE3D9)
-val WakkuOrangeContainerDark = Color(0xFF3A2015)
-val WakkuOnOrangeContainerLight = Color(0xFF7A2E12)
-val WakkuOnOrangeContainerDark = Color(0xFFFFB08F)
+// Shared palette with the Expense Tracker web app (its Tailwind `@theme`
+// tokens). Dark-only, like that app. Names mirror the web tokens where one
+// exists; the rest are derived tints needed to fill Material3 roles.
 
-// "Good"/confirmation green, reused as the secondary role.
-val WakkuGreenLight = Color(0xFF2E8B6F)
-val WakkuGreenDark = Color(0xFF4FB690)
-val WakkuOnGreenLight = Color(0xFFFFFFFF)
-val WakkuOnGreenDark = Color(0xFF0A1F16)
-val WakkuGreenContainerLight = Color(0xFFDEF0E8)
-val WakkuGreenContainerDark = Color(0xFF173327)
-val WakkuOnGreenContainerLight = Color(0xFF123B2B)
-val WakkuOnGreenContainerDark = Color(0xFFA8E0C8)
+// Neutrals
+val WakkuBackground = Color(0xFF0B0E14)
+val WakkuSurface = Color(0xFF12161F)
+val WakkuSurfaceHover = Color(0xFF171C27)
+val WakkuBorder = Color(0xFF1F2430)
+val WakkuFg = Color(0xFFE8EAF0)
+val WakkuFgMuted = Color(0xFF8890A3)
+// Derived: visible-enough outline for text fields / unchecked switches
+// (WakkuBorder alone is under 3:1 against the background).
+val WakkuOutline = Color(0xFF3A4050)
 
-val WakkuInkLight = Color(0xFF1B1E2C)
-val WakkuInkDark = Color(0xFFECEEF5)
-val WakkuInkMutedLight = Color(0xFF62667C)
-val WakkuInkMutedDark = Color(0xFF9A9FB5)
-val WakkuInkFaintLight = Color(0xFF9296A8)
-val WakkuInkFaintDark = Color(0xFF6C7088)
+// Accent (indigo)
+val WakkuAccent = Color(0xFF4F46E5)
+// Used as Material3 `primary` rather than WakkuAccent: primary is also the
+// text color of TextButtons, and #4F46E5 is only ~3:1 on the background.
+val WakkuAccentHover = Color(0xFF6366F1)
+val WakkuAccentFg = Color(0xFFF5F5FF)
+// Derived indigo tints for chips / containers.
+val WakkuAccentSoft = Color(0xFF818CF8)
+val WakkuAccentContainer = Color(0xFF1E1B4B)
+val WakkuOnAccentContainer = Color(0xFFC7D2FE)
 
-val WakkuBackgroundLight = Color(0xFFF4F5F9)
-val WakkuBackgroundDark = Color(0xFF101220)
+// Danger (red)
+val WakkuDanger = Color(0xFFF87171)
+val WakkuDangerHover = Color(0xFFFCA5A5)
+val WakkuOnDanger = Color(0xFF1F0A0A)
+val WakkuDangerContainer = Color(0xFF3B1414)
 
-val WakkuSurfaceLight = Color(0xFFFFFFFF)
-val WakkuSurfaceDark = Color(0xFF1A1D2B)
-val WakkuSurfaceVariantLight = Color(0xFFE3E5EE)
-val WakkuSurfaceVariantDark = Color(0xFF2B2E40)
+// Amber ("expense" in the web app) — used here for warnings.
+val WakkuAmber = Color(0xFFF59E0B)
+val WakkuAmberHover = Color(0xFFFBBF24)
+val WakkuAmberFg = Color(0xFF1C1206)
+val WakkuAmberContainer = Color(0xFF2A1D06)

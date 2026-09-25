@@ -94,7 +94,6 @@ class AlarmEditViewModel(
     fun save() {
         val current = _state.value
         viewModelScope.launch {
-            val existing = alarmId?.let { alarmDao.getById(it) }
             val savedId = alarmDao.upsert(
                 Alarm(
                     id = alarmId ?: 0,
@@ -102,7 +101,9 @@ class AlarmEditViewModel(
                     minute = current.minute,
                     repeatDays = current.repeatDays,
                     label = current.label,
-                    enabled = existing?.enabled ?: true,
+                    // Saving always arms the alarm, even one that was off —
+                    // editing an alarm is a strong signal the user wants it.
+                    enabled = true,
                     snoozeMinutes = current.snoozeMinutes.takeIf { current.useCustomSettings },
                     numberOfShakes = current.numberOfShakes.takeIf { current.useCustomSettings },
                     vibrationEnabled = current.vibrationEnabled.takeIf { current.useCustomSettings },
