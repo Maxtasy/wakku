@@ -49,6 +49,34 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 gradle assembleDebug
 ```
 
+## Release builds
+
+Wakku isn't on the Play Store. Release APKs are shared directly
+(sideloaded). An update only installs over an existing copy if it's
+signed with the same key, so the release keystore must never be lost.
+Keep a backup outside this machine.
+
+One-time setup: create a keystore outside the repo.
+
+```bash
+keytool -genkeypair -v -keystore ~/keys/wakku-release.jks -alias wakku -keyalg RSA -keysize 4096 -validity 36500
+```
+
+Then create `keystore.properties` in the repo root. Git ignores it, so it
+is never committed:
+
+```properties
+storeFile=C:/Users/<user>/keys/wakku-release.jks
+storePassword=...
+keyAlias=wakku
+keyPassword=...
+```
+
+Build with `gradle assembleRelease`. The signed APK ends up at
+`app/build/outputs/apk/release/app-release.apk`. Without
+`keystore.properties`, the release build still succeeds but the APK is
+unsigned (`app-release-unsigned.apk`).
+
 ## Tests
 
 ```bash
@@ -66,4 +94,4 @@ instrumented Compose UI tests live in `app/src/androidTest/`. See
 1. Bump `versionName` in `app/build.gradle.kts`, and raise `versionCode`
    by one.
 2. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version.
-3. Tag the commit `vX.Y.Z`.
+3. Tag the commit `vX.Y.Z`, then build the signed release APK (see above).

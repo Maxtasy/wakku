@@ -18,7 +18,8 @@ M0–M9 complete (dogfooding finished; the app works as intended). Now on
 `app/build.gradle.kts`): new dark-only theme shared with the Expense Tracker
 app, save always enables the alarm, tapping the big time opens the picker,
 new shaking-bell app icon. Wear OS and a home-screen widget were considered
-and explicitly ruled out by the user. **Next up: M10 (Play Store).**
+and explicitly ruled out by the user. M10 (Play Store) is scrapped for now:
+the app stays private and may at most be sideloaded to friends as an APK.
 
 - M0 Project setup ✓
 - M1 Alarm CRUD ✓
@@ -71,8 +72,7 @@ and explicitly ruled out by the user. **Next up: M10 (Play Store).**
   group transform, so to resize it, change `scaleX`/`scaleY` (0.62 was picked
   on-device next to the Expense Tracker icon, since MIUI crops adaptive icons
   tightly). The same drawable is the `<monochrome>` themed icon, and
-  `ic_notification_alarm.xml` reuses the bell path. There's no 512px Play
-  Store PNG yet (M10).
+  `ic_notification_alarm.xml` reuses the bell path. 
 - `ui/theme/` — **dark-only** Material3 color scheme (v1.1.0), palette taken from the Expense Tracker web app's Tailwind `@theme` tokens (`#0b0e14` background, `#4f46e5` indigo accent, amber/red/green). Every role is set explicitly — a partially-filled scheme leaks Material3's baseline purple into unset roles (happened once in M3). `primary` is the lighter `#6366f1` (accent-hover), not `#4f46e5`, because `primary` is also TextButton text color and `#4f46e5` is only ~3:1 on the background; the exact accent is `primaryContainer` (FAB). Amber `tertiary` is used for warnings (battery banner). There's no `values-night`; `MainActivity` forces `SystemBarStyle.dark` so status-bar icons stay white in system light mode.
 
 `AlarmTiming` (in `scheduling/`) holds `AlarmScheduler`'s next-trigger-time
@@ -279,5 +279,12 @@ picks this up next:
 
 ## Remaining milestones (from the original blueprint)
 
-- **M10 — Play Store release**: signing key, store listing, screenshots,
-  privacy policy page, closed testing track before production.
+- ~~M10 — Play Store release~~: scrapped for now (user decision, v1.1.0).
+  Because the app never goes through Play review, `USE_EXACT_ALARM` (a
+  Play-policy-restricted permission) is not a concern.
+  Release signing is set up for sideloading: `app/build.gradle.kts` reads
+  an untracked `keystore.properties` at the repo root (storeFile /
+  storePassword / keyAlias / keyPassword; see README). If that file is
+  missing, `assembleRelease` just produces an unsigned APK instead of
+  failing. The keystore itself lives outside the repo, and the user created
+  it (and its passwords). Never generate or handle it on their behalf.
