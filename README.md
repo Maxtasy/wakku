@@ -51,31 +51,42 @@ gradle assembleDebug
 
 ## Release builds
 
-Wakku isn't on the Play Store. Release APKs are shared directly
-(sideloaded). An update only installs over an existing copy if it's
-signed with the same key, so the release keystore must never be lost.
-Keep a backup outside this machine.
+Wakku isn't on the Play Store. Release APKs are signed and shared directly
+(sideloaded). Android only installs an update over an existing copy if both
+were signed with the same key. So the release keystore and its password must
+never be lost. They're backed up in KeePassXC (keystore file attached to the
+entry).
 
-One-time setup: create a keystore outside the repo.
+### One-time setup (new machine)
+
+1. Restore `wakku-release.jks` from the KeePassXC entry to
+   `~/keys/wakku-release.jks`, outside the repo. (Don't create a new key: an
+   APK signed with a new key can't update installs signed with the old one.)
+2. Copy `keystore.properties.example` to `keystore.properties` in the repo
+   root and fill in the path and password. `keystore.properties`, `*.jks`
+   and `*.keystore` are git-ignored, so neither the key nor the password can
+   be committed by accident.
+
+Without `keystore.properties`, `gradle assembleRelease` still succeeds, but
+the APK it produces is unsigned (`app-release-unsigned.apk`) and can't be
+installed.
+
+For reference, the keystore was originally created with:
 
 ```bash
-keytool -genkeypair -v -keystore ~/keys/wakku-release.jks -alias wakku -keyalg RSA -keysize 4096 -validity 36500
+"/c/Program Files/Android/Android Studio/jbr/bin/keytool" -genkeypair -v -keystore ~/keys/wakku-release.jks -alias wakku -keyalg RSA -keysize 4096 -validity 36500
 ```
 
-Then create `keystore.properties` in the repo root. Git ignores it, so it
-is never committed:
+### Installing a release APK
 
-```properties
-storeFile=C:/Users/<user>/keys/wakku-release.jks
-storePassword=...
-keyAlias=wakku
-keyPassword=...
-```
+Send `app-release.apk` any way you like (messenger, email, cloud link).
+On the phone, open it, allow "Install unknown apps" for the app it was opened
+from when Android asks, and tap through a possible Play Protect warning.
+Installing a newer APK over an old one keeps the alarms and settings.
 
-Build with `gradle assembleRelease`. The signed APK ends up at
-`app/build/outputs/apk/release/app-release.apk`. Without
-`keystore.properties`, the release build still succeeds but the APK is
-unsigned (`app-release-unsigned.apk`).
+A phone running a debug build (installed from Android Studio or
+`assembleDebug`) can't be updated with the release APK, because the signing
+keys differ. It has to uninstall first, which deletes its alarms.
 
 ## Tests
 
@@ -87,11 +98,33 @@ The unit tests cover shake detection and alarm timing math. The
 instrumented Compose UI tests live in `app/src/androidTest/`. See
 `CLAUDE.md` for how to run them on a MIUI device.
 
-## Versioning
+## Releasing a new version
 
-[Semantic Versioning](https://semver.org/). To release:
+Versions follow [Semantic Versioning](https://semver.org/)
+(`MAJOR.MINOR.PATCH`): PATCH for bug fixes, MINOR for new features or
+visible changes, MAJOR for breaking changes (e.g. a data reset).
 
-1. Bump `versionName` in `app/build.gradle.kts`, and raise `versionCode`
-   by one.
-2. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version.
-3. Tag the commit `vX.Y.Z`, then build the signed release APK (see above).
+1. In `app/build.gradle.kts`, set `versionName` to the new version and
+   raise `versionCode` by one. Android refuses to install an APK over one
+   with a higher or equal `versionCode`.
+2. In `CHANGELOG.md`, move the `[Unreleased]` entries under a new
+   `[X.Y.Z]` heading (leave an empty `[Unreleased]` above it), and update
+   "Current version" at the top of this README.
+3. Run the unit tests (`gradle testDebugUnitTest`).
+4. Commit, tag and push:
+   ```bash
+   git commit -am "vX.Y.Z: <summary>"
+   git tag -a vX.Y.Z -m "Wakku X.Y.Z"
+   git push origin main vX.Y.Z
+   ```
+5. Build the signed APK with `gradle assembleRelease`. The output is
+   `app/build/outputs/apk/release/app-release.apk`. Optionally, check the
+   signature:
+   ```bash
+   apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+   ```
+   (`apksigner` is in the Android SDK's `build-tools/<version>/`.) The
+   certificate's SHA-256 digest must match the release key's:
+   `c4cc692536729fdf78c938a0e4025e733906ee252d87a876d8baf3cdd5e976ab`.
+6. Send the APK to everyone who has the app (see "Installing a release
+   APK" above).

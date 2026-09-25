@@ -283,8 +283,9 @@ picks this up next:
   Because the app never goes through Play review, `USE_EXACT_ALARM` (a
   Play-policy-restricted permission) is not a concern.
   Release signing is set up for sideloading: `app/build.gradle.kts` reads
-  an untracked `keystore.properties` at the repo root (storeFile /
-  storePassword / keyAlias / keyPassword; see README). If that file is
+  an untracked `keystore.properties` at the repo root (template:
+  `keystore.properties.example`; see README → "Release builds" and
+  "Releasing a new version"). If that file is
   missing, `assembleRelease` just produces an unsigned APK instead of
   failing. The keystore itself lives outside the repo, and the user created
   it (and its passwords). Never generate or handle it on their behalf.
