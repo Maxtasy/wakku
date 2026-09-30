@@ -35,9 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.maxtasy.wakku.R
 import com.maxtasy.wakku.WakkuApplication
 import com.maxtasy.wakku.settings.AppSettings
 import com.maxtasy.wakku.shake.ShakeDetector
@@ -252,7 +254,7 @@ internal fun RingingScreen(
                 shakeCount = shakeCount,
                 requiredShakes = requiredShakes,
                 onShake = { shakeCount++ },
-                cancelLabel = if (dismissingSnooze) "Cancel" else "Snooze instead",
+                cancelLabel = stringResource(if (dismissingSnooze) R.string.cancel else R.string.snooze_instead),
                 onCancel = onChallengeAbandoned,
                 onComplete = onChallengeCompleted,
             )
@@ -272,12 +274,12 @@ internal fun RingingScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = label.ifBlank { "Alarm" },
+                        text = label.ifBlank { stringResource(R.string.default_alarm_label) },
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Set for %02d:%02d".format(hour, minute),
+                        text = stringResource(R.string.set_for_time, hour, minute),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -289,7 +291,7 @@ internal fun RingingScreen(
                         onClick = onSnooze,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                     ) {
-                        Text("Snooze")
+                        Text(stringResource(R.string.snooze))
                     }
                     Button(
                         onClick = {
@@ -299,7 +301,7 @@ internal fun RingingScreen(
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                     ) {
-                        Text("Stop")
+                        Text(stringResource(R.string.stop))
                     }
                 }
             }
@@ -335,7 +337,7 @@ private fun ShakeChallenge(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = "Shake to stop", style = MaterialTheme.typography.headlineMedium)
+        Text(text = stringResource(R.string.shake_to_stop), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(24.dp))
         Text(
             text = "$shakeCount / $requiredShakes",

@@ -8,20 +8,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-/**
- * AlarmManager alarms are cleared on reboot, so every enabled alarm needs
- * rescheduling — keeping a snooze or skip that was still pending.
- */
-class BootReceiver : BroadcastReceiver() {
+/** Handles the "Skip next" action on the "Next alarm" notification. */
+class SkipNextReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        val alarmId = intent.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, -1L)
+        if (alarmId == -1L) return
 
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val dao = (context.applicationContext as WakkuApplication).database.alarmDao()
-                val scheduler = AlarmScheduler(context.applicationContext)
-                dao.getAllEnabled().forEach { scheduler.restore(it) }
+                val alarm = dao.getById(alarmId) ?: return@launch
+                // scheduleAt inside skipNext refreshes the notification too.
+                AlarmScheduler(context.applicationContext).skipNext(alarm)
             } finally {
                 pendingResult.finish()
             }

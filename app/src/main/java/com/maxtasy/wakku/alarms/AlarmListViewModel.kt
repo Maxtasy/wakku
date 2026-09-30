@@ -18,11 +18,16 @@ class AlarmListViewModel(
     val alarms: StateFlow<List<Alarm>> = alarmDao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun setEnabled(alarm: Alarm, enabled: Boolean) {
+    /** Switching an alarm on calls [onScheduled] with the time it will ring at. */
+    fun setEnabled(alarm: Alarm, enabled: Boolean, onScheduled: (triggerAtMillis: Long) -> Unit = {}) {
         viewModelScope.launch {
             alarmDao.setEnabled(alarm.id, enabled)
             val updated = alarm.copy(enabled = enabled)
-            if (enabled) alarmScheduler.schedule(updated) else alarmScheduler.cancel(updated)
+            if (enabled) {
+                alarmScheduler.schedule(updated)?.let(onScheduled)
+            } else {
+                alarmScheduler.cancel(updated)
+            }
         }
     }
 }

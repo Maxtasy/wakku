@@ -7,6 +7,27 @@ every release, whatever kind of release it is.
 
 ## [Unreleased]
 
+## [1.2.0]
+
+### Added
+- After saving or switching on an alarm, a short message shows how long until
+  it rings, e.g. "Rings in 7 h 32 min".
+- German translation. All text now lives in `strings.xml`; the app follows the
+  phone's language.
+- Gradual volume: the alarm starts quiet and gets louder over 45 seconds. It is
+  a global setting and can be overridden per alarm.
+- "Skip next" on the "Next alarm" notification: skips only the next ring of a
+  repeating alarm.
+
+### Changed
+- New app icon: the Wakku mark from the Maxtasy design system (vibration arcs
+  around a dot). The status-bar/notification icon matches.
+
+### Fixed
+- A snooze (or skip) that was pending when the phone restarted or the app was
+  restarted now keeps its time instead of falling back to the alarm's regular
+  time.
+
 ## [1.1.0]
 
 ### Changed

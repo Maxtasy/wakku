@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,6 +41,7 @@ import com.maxtasy.wakku.alarms.AlarmListScreen
 import com.maxtasy.wakku.alarms.AlarmListViewModel
 import com.maxtasy.wakku.data.AlarmDao
 import com.maxtasy.wakku.scheduling.AlarmScheduler
+import com.maxtasy.wakku.scheduling.ringsInText
 import com.maxtasy.wakku.settings.SettingsRepository
 import com.maxtasy.wakku.settings.SettingsScreen
 import com.maxtasy.wakku.settings.SettingsViewModel
@@ -80,6 +82,9 @@ fun WakkuApp(modifier: Modifier = Modifier) {
     val alarmDao = context.alarmDao
     val alarmScheduler = remember(context) { AlarmScheduler(context.applicationContext) }
     val settingsRepository = context.settingsRepository
+    fun showRingsInToast(triggerAtMillis: Long) {
+        Toast.makeText(context, context.ringsInText(triggerAtMillis), Toast.LENGTH_LONG).show()
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -109,7 +114,9 @@ fun WakkuApp(modifier: Modifier = Modifier) {
             val alarms by viewModel.alarms.collectAsStateWithLifecycle()
             AlarmListScreen(
                 alarms = alarms,
-                onToggle = viewModel::setEnabled,
+                onToggle = { alarm, enabled ->
+                    viewModel.setEnabled(alarm, enabled) { triggerAt -> showRingsInToast(triggerAt) }
+                },
                 onOpenAlarm = { id -> navController.navigate("alarm/${id ?: NEW_ALARM_ID}") },
                 onOpenSettings = { navController.navigate("settings") },
                 showBatteryOptimizationWarning = !isIgnoringBatteryOptimizations && !batteryWarningDismissed,
@@ -134,6 +141,7 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                 onSnoozeMinutesChange = viewModel::setSnoozeMinutes,
                 onNumberOfShakesChange = viewModel::setNumberOfShakes,
                 onVibrationEnabledChange = viewModel::setVibrationEnabled,
+                onGradualVolumeChange = viewModel::setGradualVolume,
                 onSoundUriChange = viewModel::setSoundUri,
                 onBack = { navController.popBackStack() },
             )
@@ -160,6 +168,7 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                 snoozeMinutes = state.snoozeMinutes,
                 numberOfShakes = state.numberOfShakes,
                 vibrationEnabled = state.vibrationEnabled,
+                gradualVolume = state.gradualVolume,
                 soundUri = state.soundUri,
                 onTimeChange = viewModel::setTime,
                 onDaysChange = viewModel::setDays,
@@ -168,10 +177,14 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                 onSnoozeMinutesChange = viewModel::setSnoozeMinutes,
                 onNumberOfShakesChange = viewModel::setNumberOfShakes,
                 onVibrationEnabledChange = viewModel::setVibrationEnabled,
+                onGradualVolumeChange = viewModel::setGradualVolume,
                 onSoundUriChange = viewModel::setSoundUri,
                 onSave = {
-                    viewModel.save()
-                    navController.popBackStack()
+                    // Leave only once saved: popping the screen clears the ViewModel.
+                    viewModel.save { triggerAt ->
+                        triggerAt?.let(::showRingsInToast)
+                        navController.popBackStack()
+                    }
                 },
                 onDelete = {
                     viewModel.delete()

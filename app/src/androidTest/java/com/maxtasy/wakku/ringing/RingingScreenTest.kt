@@ -5,6 +5,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.annotation.StringRes
+import androidx.test.platform.app.InstrumentationRegistry
+import com.maxtasy.wakku.R
 import com.maxtasy.wakku.ui.theme.WakkuTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,6 +29,10 @@ class RingingScreenTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    // The test device may not run in English, so look strings up instead of hardcoding them.
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *args)
 
     private fun setContent(
         ringingId: Long? = 1L,
@@ -69,7 +76,7 @@ class RingingScreenTest {
     fun showsCurrentTimeAndAlarmTimeWithLeadingZeros() {
         setContent(currentTime = LocalTime.of(6, 5), hour = 7, minute = 5)
         composeTestRule.onNodeWithText("06:05").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Set for 07:05").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.set_for_time, 7, 5)).assertIsDisplayed()
     }
 
     @Test
@@ -96,8 +103,8 @@ class RingingScreenTest {
         composeTestRule.waitForIdle()
         assertFalse(finished)
         composeTestRule.onNodeWithText("0 / 4").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Snooze instead").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Cancel").performClick()
+        composeTestRule.onNodeWithText(str(R.string.snooze_instead)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.cancel)).performClick()
         assertTrue(abandoned)
     }
 
@@ -110,14 +117,14 @@ class RingingScreenTest {
     @Test
     fun fallsBackToGenericLabelWhenBlank() {
         setContent(label = "")
-        composeTestRule.onNodeWithText("Alarm").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.default_alarm_label)).assertIsDisplayed()
     }
 
     @Test
     fun snoozeButtonInvokesCallback() {
         var snoozed = false
         setContent(onSnooze = { snoozed = true })
-        composeTestRule.onNodeWithText("Snooze").performClick()
+        composeTestRule.onNodeWithText(str(R.string.snooze)).performClick()
         assertTrue(snoozed)
     }
 
@@ -125,9 +132,9 @@ class RingingScreenTest {
     fun stopButtonInvokesCallbackAndStartsShakeChallenge() {
         var stopTapped = false
         setContent(requiredShakes = 42, onStopTapped = { stopTapped = true })
-        composeTestRule.onNodeWithText("Stop").performClick()
+        composeTestRule.onNodeWithText(str(R.string.stop)).performClick()
         assertTrue(stopTapped)
-        composeTestRule.onNodeWithText("Shake to stop").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.shake_to_stop)).assertIsDisplayed()
         composeTestRule.onNodeWithText("0 / 42").assertIsDisplayed()
     }
 
@@ -135,8 +142,8 @@ class RingingScreenTest {
     fun cancellingShakeChallengeInvokesAbandonedCallback() {
         var abandoned = false
         setContent(onChallengeAbandoned = { abandoned = true })
-        composeTestRule.onNodeWithText("Stop").performClick()
-        composeTestRule.onNodeWithText("Snooze instead").performClick()
+        composeTestRule.onNodeWithText(str(R.string.stop)).performClick()
+        composeTestRule.onNodeWithText(str(R.string.snooze_instead)).performClick()
         assertTrue(abandoned)
     }
 
@@ -160,7 +167,7 @@ class RingingScreenTest {
     fun doesNotAutoFinishOnceShakeChallengeStarted() {
         var finishCount = 0
         setContent(ringingId = 1L, alarmId = 1L, onFinish = { finishCount++ })
-        composeTestRule.onNodeWithText("Stop").performClick()
+        composeTestRule.onNodeWithText(str(R.string.stop)).performClick()
         composeTestRule.waitForIdle()
         // Tapping Stop flips isShaking to true, re-running the auto-finish
         // LaunchedEffect (keyed on ringingId AND isShaking) — it must stay a no-op.

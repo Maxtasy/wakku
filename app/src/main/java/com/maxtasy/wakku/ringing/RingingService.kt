@@ -11,6 +11,7 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -19,9 +20,12 @@ import com.maxtasy.wakku.R
 import com.maxtasy.wakku.WakkuApplication
 import com.maxtasy.wakku.data.Alarm
 import com.maxtasy.wakku.scheduling.AlarmScheduler
+import com.maxtasy.wakku.scheduling.TriggerKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Rings an alarm: loops the current alarm sound + vibration and shows a full-screen notification. */
@@ -30,6 +34,7 @@ class RingingService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
+    private var volumeRamp: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -64,12 +69,13 @@ class RingingService : Service() {
             val numberOfShakes = alarm?.numberOfShakes ?: defaults.numberOfShakes
             val vibrationEnabled = alarm?.vibrationEnabled ?: defaults.vibrationEnabled
             val soundUri = alarm?.soundUri ?: defaults.soundUri
+            val gradualVolume = alarm?.gradualVolume ?: defaults.gradualVolume
             startForeground(
                 NOTIFICATION_ID,
                 buildNotification(alarmId, hour, minute, label, numberOfShakes),
             )
             RingingController.ringingAlarmId.value = alarmId
-            startSound(soundUri)
+            startSound(soundUri, gradualVolume)
             if (vibrationEnabled) startVibration()
         }
         return START_STICKY
@@ -114,18 +120,18 @@ class RingingService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle("%02d:%02d".format(hour, minute))
-            .setContentText(label.ifBlank { "Alarm" })
+            .setContentText(label.ifBlank { getString(R.string.default_alarm_label) })
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
             .setContentIntent(fullScreenIntent)
             .setFullScreenIntent(fullScreenIntent, true)
-            .addAction(0, "Snooze", snoozeIntent)
-            .addAction(0, "Stop", stopIntent)
+            .addAction(0, getString(R.string.snooze), snoozeIntent)
+            .addAction(0, getString(R.string.stop), stopIntent)
             .build()
     }
 
-    private fun startSound(soundUri: String?) {
+    private fun startSound(soundUri: String?, gradualVolume: Boolean) {
         val uri = soundUri?.let { Uri.parse(it) }
             ?: RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
@@ -138,8 +144,27 @@ class RingingService : Service() {
             )
             setDataSource(this@RingingService, uri)
             isLooping = true
+            if (gradualVolume) setVolume(VOLUME_RAMP_START, VOLUME_RAMP_START)
             prepare()
             start()
+        }
+        if (gradualVolume) startVolumeRamp()
+    }
+
+    /** Raises the player's volume from [VOLUME_RAMP_START] to full over [VOLUME_RAMP_MILLIS]. */
+    private fun startVolumeRamp() {
+        volumeRamp = scope.launch {
+            val startedAt = SystemClock.elapsedRealtime()
+            while (true) {
+                val progress = ((SystemClock.elapsedRealtime() - startedAt).toFloat() / VOLUME_RAMP_MILLIS)
+                    .coerceIn(0f, 1f)
+                // Squared so the first seconds stay quiet; loudness is perceived
+                // roughly logarithmically, so a linear ramp sounds like it jumps early.
+                val volume = VOLUME_RAMP_START + (1f - VOLUME_RAMP_START) * progress * progress
+                mediaPlayer?.setVolume(volume, volume)
+                if (progress >= 1f) break
+                delay(VOLUME_RAMP_STEP_MILLIS)
+            }
         }
     }
 
@@ -154,6 +179,8 @@ class RingingService : Service() {
     }
 
     private fun stopRinging() {
+        volumeRamp?.cancel()
+        volumeRamp = null
         mediaPlayer?.apply {
             if (isPlaying) stop()
             release()
@@ -178,7 +205,7 @@ class RingingService : Service() {
             val snoozeMinutes = alarm.snoozeMinutes ?: app.settings.current().snoozeMinutes
             val triggerAt = System.currentTimeMillis() + snoozeMinutes * 60_000L
             // scheduleAt also updates the persistent "next alarm" notification.
-            AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt, snoozed = true)
+            AlarmScheduler(applicationContext).scheduleAt(alarm, triggerAt, TriggerKind.SNOOZED)
         }
     }
 
@@ -214,6 +241,9 @@ class RingingService : Service() {
         private const val REQUEST_CODE_SNOOZE_OFFSET = 1_000_000
         private const val REQUEST_CODE_STOP_OFFSET = 3_000_000
         private val VIBRATION_PATTERN = longArrayOf(0, 1000, 1000)
+        private const val VOLUME_RAMP_MILLIS = 45_000L
+        private const val VOLUME_RAMP_STEP_MILLIS = 250L
+        private const val VOLUME_RAMP_START = 0.05f
 
         fun intent(context: Context, alarm: Alarm): Intent =
             Intent(context, RingingService::class.java).apply {

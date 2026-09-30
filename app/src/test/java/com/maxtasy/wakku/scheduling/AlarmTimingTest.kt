@@ -80,4 +80,74 @@ class AlarmTimingTest {
         val result = AlarmTiming.nextTriggerMillis(a, now, zone)
         assertEquals(expectedMillis(now.toLocalDate().plusDays(2), 8, 0), result)
     }
+
+    @Test
+    fun `skipping the next occurrence of an every-day alarm lands on the day after`() {
+        val a = alarm(hour = 9, minute = 0, repeatDays = DayOfWeek.entries.toSet())
+        // Next is tomorrow 09:00, so the skip target is the day after tomorrow.
+        val result = AlarmTiming.triggerAfterNextMillis(a, now, zone)
+        assertEquals(expectedMillis(now.toLocalDate().plusDays(2), 9, 0), result)
+    }
+
+    @Test
+    fun `skipping when the next occurrence is later today lands on the following matching day`() {
+        val a = alarm(hour = 11, minute = 0, repeatDays = DayOfWeek.entries.toSet())
+        val result = AlarmTiming.triggerAfterNextMillis(a, now, zone)
+        assertEquals(expectedMillis(now.toLocalDate().plusDays(1), 11, 0), result)
+    }
+
+    @Test
+    fun `skipping a weekly alarm lands a full week after the next occurrence`() {
+        val a = alarm(hour = 8, minute = 0, repeatDays = setOf(now.dayOfWeek.plus(3)))
+        val result = AlarmTiming.triggerAfterNextMillis(a, now, zone)
+        assertEquals(expectedMillis(now.toLocalDate().plusDays(10), 8, 0), result)
+    }
+
+    @Test
+    fun `skipping with several repeat days jumps to the second-nearest day`() {
+        val a = alarm(
+            hour = 8,
+            minute = 0,
+            repeatDays = setOf(now.dayOfWeek.plus(2), now.dayOfWeek.plus(5)),
+        )
+        val result = AlarmTiming.triggerAfterNextMillis(a, now, zone)
+        assertEquals(expectedMillis(now.toLocalDate().plusDays(5), 8, 0), result)
+    }
+
+    private fun minutes(n: Long) = n * 60_000L
+
+    @Test
+    fun `duration splits into days hours and minutes`() {
+        val parts = AlarmTiming.durationUntil(minutes(2 * 24 * 60 + 3 * 60 + 10), 0L)
+        assertEquals(AlarmTiming.DurationParts(days = 2, hours = 3, minutes = 10), parts)
+    }
+
+    @Test
+    fun `duration under a day has no days`() {
+        val parts = AlarmTiming.durationUntil(minutes(7 * 60 + 32), 0L)
+        assertEquals(AlarmTiming.DurationParts(days = 0, hours = 7, minutes = 32), parts)
+    }
+
+    @Test
+    fun `a partial minute is rounded up`() {
+        assertEquals(AlarmTiming.DurationParts(0, 0, 1), AlarmTiming.durationUntil(30_000L, 0L))
+        assertEquals(AlarmTiming.DurationParts(0, 0, 2), AlarmTiming.durationUntil(61_000L, 0L))
+    }
+
+    @Test
+    fun `an exact hour has zero minutes`() {
+        assertEquals(AlarmTiming.DurationParts(0, 8, 0), AlarmTiming.durationUntil(minutes(8 * 60), 0L))
+    }
+
+    @Test
+    fun `duration is at least one minute even when already due`() {
+        assertEquals(AlarmTiming.DurationParts(0, 0, 1), AlarmTiming.durationUntil(1_000L, 5_000L))
+    }
+
+    @Test
+    fun `duration is measured from now not from the epoch`() {
+        val now = 1_000_000_000L
+        val parts = AlarmTiming.durationUntil(now + minutes(90), now)
+        assertEquals(AlarmTiming.DurationParts(0, 1, 30), parts)
+    }
 }

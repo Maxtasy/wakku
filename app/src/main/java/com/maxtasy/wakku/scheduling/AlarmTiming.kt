@@ -1,6 +1,7 @@
 package com.maxtasy.wakku.scheduling
 
 import com.maxtasy.wakku.data.Alarm
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -27,5 +28,28 @@ object AlarmTiming {
             .atZone(zone)
             .toInstant()
             .toEpochMilli()
+    }
+
+    /** The occurrence after the next one, for "skip next" on a repeating alarm. */
+    fun triggerAfterNextMillis(alarm: Alarm, now: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): Long {
+        val next = nextTriggerMillis(alarm, now, zone)
+        val nextDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(next), zone)
+        return nextTriggerMillis(alarm, nextDateTime, zone)
+    }
+
+    /** A time span split into the parts shown in the "Rings in …" message. */
+    data class DurationParts(val days: Int, val hours: Int, val minutes: Int)
+
+    /**
+     * Time from [nowMillis] until [triggerAtMillis], with a partial minute
+     * rounded up (an alarm 30 s away is "1 min", never "0 min").
+     */
+    fun durationUntil(triggerAtMillis: Long, nowMillis: Long): DurationParts {
+        val totalMinutes = ((triggerAtMillis - nowMillis + 59_999L) / 60_000L).coerceAtLeast(1L)
+        return DurationParts(
+            days = (totalMinutes / (24 * 60)).toInt(),
+            hours = (totalMinutes / 60 % 24).toInt(),
+            minutes = (totalMinutes % 60).toInt(),
+        )
     }
 }

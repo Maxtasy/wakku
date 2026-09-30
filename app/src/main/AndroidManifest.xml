@@ -52,6 +52,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".scheduling.SkipNextReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".scheduling.BootReceiver"
             android:exported="false">
             <intent-filter>

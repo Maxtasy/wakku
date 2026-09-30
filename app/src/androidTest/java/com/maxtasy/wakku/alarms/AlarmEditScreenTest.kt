@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.annotation.StringRes
+import androidx.test.platform.app.InstrumentationRegistry
+import com.maxtasy.wakku.R
 import com.maxtasy.wakku.ui.theme.WakkuTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,6 +28,10 @@ class AlarmEditScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    // The test device may not run in English, so look strings up instead of hardcoding them.
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *args)
+
     private fun setContent(
         hour: Int = 7,
         minute: Int = 0,
@@ -35,6 +42,7 @@ class AlarmEditScreenTest {
         snoozeMinutes: Int = 5,
         numberOfShakes: Int = 30,
         vibrationEnabled: Boolean = true,
+        gradualVolume: Boolean = false,
         soundUri: String? = null,
         onTimeChange: (Int, Int) -> Unit = { _, _ -> },
         onDaysChange: (Set<DayOfWeek>) -> Unit = {},
@@ -43,6 +51,7 @@ class AlarmEditScreenTest {
         onSnoozeMinutesChange: (Int) -> Unit = {},
         onNumberOfShakesChange: (Int) -> Unit = {},
         onVibrationEnabledChange: (Boolean) -> Unit = {},
+        onGradualVolumeChange: (Boolean) -> Unit = {},
         onSoundUriChange: (String?) -> Unit = {},
         onSave: () -> Unit = {},
         onDelete: () -> Unit = {},
@@ -60,6 +69,7 @@ class AlarmEditScreenTest {
                     snoozeMinutes = snoozeMinutes,
                     numberOfShakes = numberOfShakes,
                     vibrationEnabled = vibrationEnabled,
+                    gradualVolume = gradualVolume,
                     soundUri = soundUri,
                     onTimeChange = onTimeChange,
                     onDaysChange = onDaysChange,
@@ -68,6 +78,7 @@ class AlarmEditScreenTest {
                     onSnoozeMinutesChange = onSnoozeMinutesChange,
                     onNumberOfShakesChange = onNumberOfShakesChange,
                     onVibrationEnabledChange = onVibrationEnabledChange,
+                    onGradualVolumeChange = onGradualVolumeChange,
                     onSoundUriChange = onSoundUriChange,
                     onSave = onSave,
                     onDelete = onDelete,
@@ -80,15 +91,15 @@ class AlarmEditScreenTest {
     @Test
     fun newAlarmShowsNewAlarmTitleAndNoDeleteAction() {
         setContent(isNew = true)
-        composeTestRule.onNodeWithText("New alarm").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Delete alarm").assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.new_alarm)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.delete_alarm)).assertDoesNotExist()
     }
 
     @Test
     fun existingAlarmShowsEditAlarmTitleAndDeleteAction() {
         setContent(isNew = false)
-        composeTestRule.onNodeWithText("Edit alarm").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Delete alarm").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.edit_alarm)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.delete_alarm)).assertIsDisplayed()
     }
 
     @Test
@@ -100,35 +111,49 @@ class AlarmEditScreenTest {
     @Test
     fun tappingTimeOpensTimePicker() {
         setContent(hour = 7, minute = 5)
-        composeTestRule.onNodeWithText("OK").assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.ok)).assertDoesNotExist()
         composeTestRule.onNodeWithTag("alarmTimeText").performClick()
-        composeTestRule.onNodeWithText("OK").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.ok)).assertIsDisplayed()
     }
 
     @Test
     fun customSettingsControlsHiddenByDefault() {
         setContent(useCustomSettings = false)
-        composeTestRule.onNodeWithText("Snooze time").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Shakes to stop").assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.snooze_time)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.shakes_to_stop)).assertDoesNotExist()
     }
 
     @Test
     fun customSettingsControlsVisibleWhenEnabled() {
         setContent(useCustomSettings = true)
-        composeTestRule.onNodeWithText("Snooze time").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Shakes to stop").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.snooze_time)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.shakes_to_stop)).assertIsDisplayed()
         // The screen is a scrollable column, so "Vibrate" and "Alarm sound" can land
         // below the fold on shorter screens — existence, not on-screen visibility, is
         // what this test cares about.
-        composeTestRule.onNodeWithText("Vibrate").assertExists()
-        composeTestRule.onNodeWithText("Alarm sound").assertExists()
+        composeTestRule.onNodeWithText(str(R.string.vibrate)).assertExists()
+        composeTestRule.onNodeWithText(str(R.string.alarm_sound)).assertExists()
     }
 
     @Test
     fun togglingCustomSettingsRowInvokesCallback() {
         var value: Boolean? = null
         setContent(useCustomSettings = false, onUseCustomSettingsChange = { value = it })
-        composeTestRule.onNodeWithText("Custom settings for this alarm").performClick()
+        composeTestRule.onNodeWithText(str(R.string.custom_settings_for_alarm)).performClick()
+        assertEquals(true, value)
+    }
+
+    @Test
+    fun gradualVolumeRowOnlyExistsWithCustomSettings() {
+        setContent(useCustomSettings = false)
+        composeTestRule.onNodeWithText(str(R.string.gradual_volume)).assertDoesNotExist()
+    }
+
+    @Test
+    fun togglingGradualVolumeRowInvokesCallback() {
+        var value: Boolean? = null
+        setContent(useCustomSettings = true, gradualVolume = false, onGradualVolumeChange = { value = it })
+        composeTestRule.onNodeWithText(str(R.string.gradual_volume)).performClick()
         assertEquals(true, value)
     }
 
@@ -166,7 +191,7 @@ class AlarmEditScreenTest {
     fun saveButtonInvokesCallback() {
         var saved = false
         setContent(onSave = { saved = true })
-        composeTestRule.onNodeWithText("Save").performClick()
+        composeTestRule.onNodeWithText(str(R.string.save)).performClick()
         assertTrue(saved)
     }
 
@@ -174,7 +199,7 @@ class AlarmEditScreenTest {
     fun deleteButtonInvokesCallback() {
         var deleted = false
         setContent(isNew = false, onDelete = { deleted = true })
-        composeTestRule.onNodeWithContentDescription("Delete alarm").performClick()
+        composeTestRule.onNodeWithContentDescription(str(R.string.delete_alarm)).performClick()
         assertTrue(deleted)
     }
 
@@ -182,7 +207,7 @@ class AlarmEditScreenTest {
     fun backButtonInvokesCallback() {
         var backPressed = false
         setContent(onBack = { backPressed = true })
-        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.onNodeWithContentDescription(str(R.string.back)).performClick()
         assertTrue(backPressed)
     }
 
@@ -190,7 +215,7 @@ class AlarmEditScreenTest {
     fun deleteButtonAbsentMeansNoAccidentalDeleteOnNewAlarm() {
         var deleted = false
         setContent(isNew = true, onDelete = { deleted = true })
-        composeTestRule.onNodeWithContentDescription("Delete alarm").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(str(R.string.delete_alarm)).assertDoesNotExist()
         assertFalse(deleted)
     }
 }

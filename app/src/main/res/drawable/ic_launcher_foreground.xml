@@ -1,45 +1,32 @@
-<!-- Shaking bell: indigo bell, green clapper, sky-blue shake marks — the same
-     three colors as the Expense Tracker logo. Drawn in a 240-unit sketch space
-     centered on (120,92), then scaled/translated into the adaptive icon's
-     66dp safe zone (group transforms apply scale, rotate, then translate). -->
+<!-- Wakku mark from the Maxtasy design system (assets/logos/wakku.svg): vibration
+     arcs (sky, indigo) around a mint dot. Drawn on the design system's 48-unit
+     grid; the group scales it into the adaptive icon's 66dp safe zone (the whole
+     mark fits a circle of radius 22 units, so 1.35 leaves a small margin) and
+     centers it on (54,54). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:pivotX="120"
-        android:pivotY="92"
-        android:scaleX="0.62"
-        android:scaleY="0.62"
-        android:translateX="-66"
-        android:translateY="-38">
-        <group
-            android:pivotX="120"
-            android:pivotY="92"
-            android:rotation="-14">
-            <!-- bell knob + body -->
-            <path
-                android:fillColor="#6366F1"
-                android:pathData="M120,64 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
-            <path
-                android:fillColor="#6366F1"
-                android:pathData="M120,66 c-14,0 -22,11 -22,24 v14 l-7,9 h58 l-7,-9 v-14 c0,-13 -8,-24 -22,-24 z" />
-            <!-- clapper -->
-            <path
-                android:fillColor="#34D399"
-                android:pathData="M120,119 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
-        </group>
-        <!-- shake marks -->
+        android:scaleX="1.35"
+        android:scaleY="1.35"
+        android:translateX="21.6"
+        android:translateY="21.6">
         <path
+            android:pathData="M11.39,33.85A16,16 0 0,1 11.39,14.15"
             android:strokeColor="#38BDF8"
-            android:strokeWidth="5"
+            android:strokeWidth="12"
             android:strokeLineCap="round"
-            android:pathData="M82,74 q-9,17 0,34" />
+            android:strokeLineJoin="round" />
         <path
-            android:strokeColor="#38BDF8"
-            android:strokeWidth="5"
+            android:pathData="M36.61,14.15A16,16 0 0,1 36.61,33.85"
+            android:strokeColor="#6366F1"
+            android:strokeWidth="12"
             android:strokeLineCap="round"
-            android:pathData="M158,74 q9,17 0,34" />
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#3AD69B"
+            android:pathData="M24,24m-6.5,0a6.5,6.5 0 1,0 13,0a6.5,6.5 0 1,0 -13,0" />
     </group>
 </vector>

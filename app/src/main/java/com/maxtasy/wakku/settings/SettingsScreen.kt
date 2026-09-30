@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.maxtasy.wakku.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,16 +25,17 @@ fun SettingsScreen(
     onSnoozeMinutesChange: (Int) -> Unit,
     onNumberOfShakesChange: (Int) -> Unit,
     onVibrationEnabledChange: (Boolean) -> Unit,
+    onGradualVolumeChange: (Boolean) -> Unit,
     onSoundUriChange: (String?) -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -46,16 +49,16 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(32.dp),
         ) {
             SettingSlider(
-                label = "Snooze time",
-                valueLabel = "${settings.snoozeMinutes} min",
+                label = stringResource(R.string.snooze_time),
+                valueLabel = stringResource(R.string.duration_minutes, settings.snoozeMinutes),
                 value = settings.snoozeMinutes,
                 onValueChange = onSnoozeMinutesChange,
                 valueRange = 1..30,
                 step = 1,
             )
             SettingSlider(
-                label = "Shakes to stop",
-                valueLabel = "${settings.numberOfShakes} shakes",
+                label = stringResource(R.string.shakes_to_stop),
+                valueLabel = stringResource(R.string.shakes_count, settings.numberOfShakes),
                 value = settings.numberOfShakes,
                 onValueChange = onNumberOfShakesChange,
                 valueRange = 5..100,
@@ -64,6 +67,10 @@ fun SettingsScreen(
             VibrationSwitchRow(
                 vibrationEnabled = settings.vibrationEnabled,
                 onVibrationEnabledChange = onVibrationEnabledChange,
+            )
+            GradualVolumeSwitchRow(
+                gradualVolume = settings.gradualVolume,
+                onGradualVolumeChange = onGradualVolumeChange,
             )
             SoundPickerRow(soundUri = settings.soundUri, onSoundUriChange = onSoundUriChange)
         }

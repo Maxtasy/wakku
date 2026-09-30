@@ -4,6 +4,7 @@ data class AppSettings(
     val snoozeMinutes: Int = DEFAULT_SNOOZE_MINUTES,
     val numberOfShakes: Int = DEFAULT_NUMBER_OF_SHAKES,
     val vibrationEnabled: Boolean = true,
+    val gradualVolume: Boolean = false,
     /** null means "use the device's default alarm sound." */
     val soundUri: String? = null,
 ) {

@@ -26,7 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import com.maxtasy.wakku.R
 import kotlin.math.roundToInt
 
 /** Shared between the global Settings screen and per-alarm override editing. */
@@ -60,35 +63,64 @@ fun SettingSlider(
     }
 }
 
+/**
+ * A label + switch row exposed to screen readers as one toggleable node
+ * (the Switch itself has no click handler of its own).
+ */
 @Composable
-fun VibrationSwitchRow(vibrationEnabled: Boolean, onVibrationEnabledChange: (Boolean) -> Unit) {
+fun SettingSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    labelStyle: TextStyle = MaterialTheme.typography.titleMedium,
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .toggleable(
-                value = vibrationEnabled,
-                onValueChange = onVibrationEnabledChange,
+                value = checked,
+                onValueChange = onCheckedChange,
                 role = Role.Switch,
             )
             .semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Vibrate", style = MaterialTheme.typography.titleMedium)
-        Switch(checked = vibrationEnabled, onCheckedChange = null)
+        Text(label, style = labelStyle)
+        Switch(checked = checked, onCheckedChange = null)
     }
+}
+
+@Composable
+fun VibrationSwitchRow(vibrationEnabled: Boolean, onVibrationEnabledChange: (Boolean) -> Unit) {
+    SettingSwitchRow(
+        label = stringResource(R.string.vibrate),
+        checked = vibrationEnabled,
+        onCheckedChange = onVibrationEnabledChange,
+    )
+}
+
+@Composable
+fun GradualVolumeSwitchRow(gradualVolume: Boolean, onGradualVolumeChange: (Boolean) -> Unit) {
+    SettingSwitchRow(
+        label = stringResource(R.string.gradual_volume),
+        checked = gradualVolume,
+        onCheckedChange = onGradualVolumeChange,
+    )
 }
 
 @Composable
 fun SoundPickerRow(soundUri: String?, onSoundUriChange: (String?) -> Unit) {
     val context = LocalContext.current
-    var soundName by remember { mutableStateOf("Default alarm sound") }
+    val defaultSoundName = stringResource(R.string.default_alarm_sound)
+    var soundName by remember { mutableStateOf(defaultSoundName) }
 
-    LaunchedEffect(soundUri) {
+    LaunchedEffect(soundUri, defaultSoundName) {
         val uri = soundUri?.let { Uri.parse(it) }
             ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
         soundName = uri?.let { RingtoneManager.getRingtone(context, it)?.getTitle(context) }
-            ?: "Default alarm sound"
+            ?: defaultSoundName
     }
 
     val pickerLauncher = rememberLauncherForActivityResult(
@@ -101,7 +133,7 @@ fun SoundPickerRow(soundUri: String?, onSoundUriChange: (String?) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Change alarm sound") {
+            .clickable(onClickLabel = stringResource(R.string.change_alarm_sound)) {
                 val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                     putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
                     putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
@@ -116,7 +148,7 @@ fun SoundPickerRow(soundUri: String?, onSoundUriChange: (String?) -> Unit) {
             }
             .semantics(mergeDescendants = true) { role = Role.Button },
     ) {
-        Text("Alarm sound", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.alarm_sound), style = MaterialTheme.typography.titleMedium)
         Text(soundName, style = MaterialTheme.typography.bodyMedium)
     }
 }

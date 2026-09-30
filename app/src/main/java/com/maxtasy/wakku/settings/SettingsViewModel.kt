@@ -24,6 +24,10 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
         viewModelScope.launch { repository.setVibrationEnabled(enabled) }
     }
 
+    fun setGradualVolume(enabled: Boolean) {
+        viewModelScope.launch { repository.setGradualVolume(enabled) }
+    }
+
     fun setSoundUri(uri: String?) {
         viewModelScope.launch { repository.setSoundUri(uri) }
     }

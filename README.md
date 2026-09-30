@@ -7,7 +7,7 @@ Tapping **Stop** only silences the alarm. To actually turn it off you have to
 shake the phone a set number of times. If you give up partway (cancel, back,
 home, or just put the phone down), the alarm snoozes instead of turning off.
 
-Current version: **1.1.0** (see [CHANGELOG.md](CHANGELOG.md)).
+Current version: **1.2.0** (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Features
 

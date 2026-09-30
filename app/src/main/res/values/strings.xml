@@ -1,3 +1,67 @@
 <resources>
     <string name="app_name">Wakku</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="stop">Stop</string>
+    <string name="snooze">Snooze</string>
+    <string name="settings">Settings</string>
+    <string name="default_alarm_label">Alarm</string>
+    <string name="duration_minutes">%d min</string>
+    <string name="duration_hours">%d h</string>
+    <string name="duration_days">%d d</string>
+
+    <!-- Alarm list -->
+    <string name="add_alarm">Add alarm</string>
+    <string name="no_alarms">No alarms yet.</string>
+    <string name="alarm_at_time">Alarm at %1$02d:%2$02d</string>
+    <string name="repeat_once">Once</string>
+    <string name="repeat_every_day">Every day</string>
+    <string name="repeat_weekdays">Weekdays</string>
+    <string name="repeat_weekend">Weekends</string>
+    <string name="battery_warning_title">Alarms may be unreliable</string>
+    <string name="battery_warning_body">This device can kill Wakku in the background. Exempt it from battery optimization to keep alarms reliable.</string>
+    <string name="battery_warning_fix">Fix it</string>
+    <string name="dismiss">Dismiss</string>
+
+    <!-- Rings-in message -->
+    <string name="rings_in">Rings in %s</string>
+
+    <!-- Alarm edit -->
+    <string name="new_alarm">New alarm</string>
+    <string name="edit_alarm">Edit alarm</string>
+    <string name="delete_alarm">Delete alarm</string>
+    <string name="change_time">Change time</string>
+    <string name="repeat">Repeat</string>
+    <string name="label">Label</string>
+    <string name="custom_settings_for_alarm">Override global settings</string>
+
+    <!-- Settings -->
+    <string name="snooze_time">Snooze time</string>
+    <string name="shakes_to_stop">Shakes to stop</string>
+    <string name="shakes_count">%d shakes</string>
+    <string name="vibrate">Vibrate</string>
+    <string name="gradual_volume">Gradual volume</string>
+    <string name="alarm_sound">Alarm sound</string>
+    <string name="default_alarm_sound">Default alarm sound</string>
+    <string name="change_alarm_sound">Change alarm sound</string>
+
+    <!-- Ringing screen -->
+    <string name="set_for_time">Set for %1$02d:%2$02d</string>
+    <string name="snooze_instead">Snooze instead</string>
+    <string name="shake_to_stop">Shake to stop</string>
+
+    <!-- Notifications -->
+    <string name="channel_alarms_name">Alarms</string>
+    <string name="channel_alarms_description">Shown while an alarm is ringing</string>
+    <string name="channel_next_alarm_name">Upcoming alarm</string>
+    <string name="channel_next_alarm_description">Shows when your next alarm will ring</string>
+    <string name="notification_next_alarm">Next alarm</string>
+    <string name="notification_next_alarm_skipped">Next alarm (one skipped)</string>
+    <string name="notification_alarm_snoozed">Alarm snoozed</string>
+    <string name="notification_rings_again_at">Rings again at %s</string>
+    <string name="notification_skip">Skip next</string>
 </resources>

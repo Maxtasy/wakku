@@ -33,14 +33,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.maxtasy.wakku.R
 import com.maxtasy.wakku.data.Alarm
 import java.time.DayOfWeek
 import java.time.format.TextStyle
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,17 +58,17 @@ fun AlarmListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wakku") },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { onOpenAlarm(null) }) {
-                Icon(Icons.Default.Add, contentDescription = "Add alarm")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_alarm))
             }
         }
     ) { padding ->
@@ -83,7 +85,7 @@ fun AlarmListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("No alarms yet.", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.no_alarms), style = MaterialTheme.typography.titleMedium)
                 }
             } else {
                 LazyColumn(
@@ -118,11 +120,10 @@ private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, 
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Alarms may be unreliable", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.battery_warning_title), style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "This device can kill Wakku in the background. Exempt it from battery " +
-                        "optimization to keep alarms reliable.",
+                    stringResource(R.string.battery_warning_body),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(8.dp))
@@ -131,11 +132,11 @@ private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, 
                     modifier = Modifier.align(Alignment.Start),
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary),
                 ) {
-                    Text("Fix it")
+                    Text(stringResource(R.string.battery_warning_fix))
                 }
             }
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "Dismiss")
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.dismiss))
             }
         }
     }
@@ -143,6 +144,7 @@ private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, 
 
 @Composable
 private fun AlarmRow(alarm: Alarm, onToggle: (Boolean) -> Unit, onClick: () -> Unit) {
+    val alarmAtTime = stringResource(R.string.alarm_at_time, alarm.hour, alarm.minute)
     ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -173,7 +175,7 @@ private fun AlarmRow(alarm: Alarm, onToggle: (Boolean) -> Unit, onClick: () -> U
                 checked = alarm.enabled,
                 onCheckedChange = onToggle,
                 modifier = Modifier.semantics {
-                    contentDescription = "Alarm at %02d:%02d".format(alarm.hour, alarm.minute)
+                    contentDescription = alarmAtTime
                 },
             )
         }
@@ -185,10 +187,14 @@ private val WEEKDAYS = setOf(
 )
 private val WEEKEND = setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
 
+@Composable
 private fun Set<DayOfWeek>.toDisplayString(): String = when {
-    isEmpty() -> "Once"
-    size == 7 -> "Every day"
-    this == WEEKDAYS -> "Weekdays"
-    this == WEEKEND -> "Weekends"
-    else -> sortedBy { it.value }.joinToString(", ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+    isEmpty() -> stringResource(R.string.repeat_once)
+    size == 7 -> stringResource(R.string.repeat_every_day)
+    this == WEEKDAYS -> stringResource(R.string.repeat_weekdays)
+    this == WEEKEND -> stringResource(R.string.repeat_weekend)
+    else -> {
+        val locale = LocalConfiguration.current.locales[0]
+        sortedBy { it.value }.joinToString(", ") { it.getDisplayName(TextStyle.SHORT, locale) }
+    }
 }

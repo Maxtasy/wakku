@@ -21,19 +21,20 @@ class WakkuApplication : Application() {
         createAlarmNotificationChannel()
         NextAlarmNotifier.createChannel(this)
         // Covers app updates and force-stops, which don't go through BootReceiver.
+        // restore() rather than schedule(), so a pending snooze or skip survives.
         CoroutineScope(Dispatchers.IO).launch {
             val scheduler = AlarmScheduler(applicationContext)
-            database.alarmDao().getAllEnabled().forEach { scheduler.schedule(it) }
+            database.alarmDao().getAllEnabled().forEach { scheduler.restore(it) }
         }
     }
 
     private fun createAlarmNotificationChannel() {
         val channel = NotificationChannel(
             RingingService.CHANNEL_ID,
-            "Alarms",
+            getString(R.string.channel_alarms_name),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Shown while an alarm is ringing"
+            description = getString(R.string.channel_alarms_description)
             // RingingService loops its own sound/vibration continuously; a
             // one-shot channel sound or vibration would just double up on it.
             setSound(null, null)

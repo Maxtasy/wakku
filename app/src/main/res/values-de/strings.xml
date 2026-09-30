@@ -1,0 +1,67 @@
+<resources>
+    <string name="app_name">Wakku</string>
+
+    <!-- Common -->
+    <string name="back">Zurück</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="save">Speichern</string>
+    <string name="stop">Stopp</string>
+    <string name="snooze">Schlummern</string>
+    <string name="settings">Einstellungen</string>
+    <string name="default_alarm_label">Wecker</string>
+    <string name="duration_minutes">%d Min.</string>
+    <string name="duration_hours">%d Std.</string>
+    <string name="duration_days">%d T.</string>
+
+    <!-- Alarm list -->
+    <string name="add_alarm">Wecker hinzufügen</string>
+    <string name="no_alarms">Noch keine Wecker.</string>
+    <string name="alarm_at_time">Wecker um %1$02d:%2$02d</string>
+    <string name="repeat_once">Einmalig</string>
+    <string name="repeat_every_day">Jeden Tag</string>
+    <string name="repeat_weekdays">Werktage</string>
+    <string name="repeat_weekend">Wochenende</string>
+    <string name="battery_warning_title">Wecker könnten unzuverlässig sein</string>
+    <string name="battery_warning_body">Dieses Gerät kann Wakku im Hintergrund beenden. Nimm Wakku von der Akku-Optimierung aus, damit Wecker zuverlässig klingeln.</string>
+    <string name="battery_warning_fix">Beheben</string>
+    <string name="dismiss">Schließen</string>
+
+    <!-- Rings-in message -->
+    <string name="rings_in">Klingelt in %s</string>
+
+    <!-- Alarm edit -->
+    <string name="new_alarm">Neuer Wecker</string>
+    <string name="edit_alarm">Wecker bearbeiten</string>
+    <string name="delete_alarm">Wecker löschen</string>
+    <string name="change_time">Zeit ändern</string>
+    <string name="repeat">Wiederholen</string>
+    <string name="label">Bezeichnung</string>
+    <string name="custom_settings_for_alarm">Globale Einstellungen überschreiben</string>
+
+    <!-- Settings -->
+    <string name="snooze_time">Schlummerzeit</string>
+    <string name="shakes_to_stop">Schüttler zum Stoppen</string>
+    <string name="shakes_count">%d Schüttler</string>
+    <string name="vibrate">Vibration</string>
+    <string name="gradual_volume">Langsam lauter werden</string>
+    <string name="alarm_sound">Weckton</string>
+    <string name="default_alarm_sound">Standard-Weckton</string>
+    <string name="change_alarm_sound">Weckton ändern</string>
+
+    <!-- Ringing screen -->
+    <string name="set_for_time">Gestellt auf %1$02d:%2$02d</string>
+    <string name="snooze_instead">Stattdessen schlummern</string>
+    <string name="shake_to_stop">Schütteln zum Stoppen</string>
+
+    <!-- Notifications -->
+    <string name="channel_alarms_name">Wecker</string>
+    <string name="channel_alarms_description">Wird angezeigt, während ein Wecker klingelt</string>
+    <string name="channel_next_alarm_name">Nächster Wecker</string>
+    <string name="channel_next_alarm_description">Zeigt an, wann dein nächster Wecker klingelt</string>
+    <string name="notification_next_alarm">Nächster Wecker</string>
+    <string name="notification_next_alarm_skipped">Nächster Wecker (einer übersprungen)</string>
+    <string name="notification_alarm_snoozed">Wecker schlummert</string>
+    <string name="notification_rings_again_at">Klingelt wieder um %s</string>
+    <string name="notification_skip">Nächsten überspringen</string>
+</resources>

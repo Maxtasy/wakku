@@ -14,10 +14,11 @@ original pitch.
 ## Status
 
 M0–M9 complete (dogfooding finished; the app works as intended). Now on
-**v1.1.0** (semver, see `CHANGELOG.md`; `versionName`/`versionCode` in
-`app/build.gradle.kts`): new dark-only theme shared with the Expense Tracker
-app, save always enables the alarm, tapping the big time opens the picker,
-new shaking-bell app icon. Wear OS and a home-screen widget were considered
+**v1.2.0** (semver, see `CHANGELOG.md`; `versionName`/`versionCode` in
+`app/build.gradle.kts`): "Rings in …" toast, German translation, snooze
+surviving reboots, gradual volume, "Skip next" on the notification, and the
+new Wakku logo from the Maxtasy design system as the app icon (v1.1.0 brought
+the dark-only theme shared with the Expense Tracker app). Wear OS and a home-screen widget were considered
 and explicitly ruled out by the user. M10 (Play Store) is scrapped for now:
 the app stays private and may at most be sideloaded to friends as an APK.
 
@@ -61,18 +62,18 @@ the app stays private and may at most be sideloaded to friends as an APK.
 
 - `alarms/` — alarm list + create/edit screens, ViewModels
 - `data/` — Room entity/DAO/database (`Alarm`, `AlarmDao`, `WakkuDatabase`, `Converters`)
-- `scheduling/` — `AlarmScheduler` (wraps `AlarmManager.setAlarmClock`), `AlarmReceiver` (fires alarms), `BootReceiver`, `NextAlarmNotifier` (persistent "Next alarm" notification)
+- `scheduling/` — `AlarmScheduler` (wraps `AlarmManager.setAlarmClock`), `AlarmReceiver` (fires alarms), `BootReceiver`, `SkipNextReceiver` ("Skip next" notification action), `NextAlarmNotifier` (persistent "Next alarm" notification), `AlarmTiming` (pure math), `RingsInText`
 - `ringing/` — `RingingService` (foreground service: sound/vibration/notification), `RingingActivity` (full-screen UI, shake-challenge state machine), `RingingController` (shared StateFlow so the Activity can close itself if the notification's own action ends things externally)
 - `shake/` — `ShakeCounter` (pure, unit-testable peak-detection logic) + `ShakeDetector` (SensorEventListener wrapper around it)
-- `settings/` — `AppSettings`, `SettingsRepository` (DataStore), `SettingsViewModel`, `SettingsScreen`, `SettingsComponents` (shared `SettingSlider`/`VibrationSwitchRow`/`SoundPickerRow`, reused by `AlarmEditScreen` for per-alarm overrides)
-- App icon (`res/drawable/ic_launcher_foreground.xml`, v1.1.0): tilted bell
-  with shake marks, in the Expense Tracker *logo's* colors (indigo `#6366F1`,
-  green `#34D399`, sky blue `#38BDF8`; sky blue isn't in the app theme). It's
-  drawn in a 240-unit sketch space and fitted into the 108dp canvas with a
-  group transform, so to resize it, change `scaleX`/`scaleY` (0.62 was picked
-  on-device next to the Expense Tracker icon, since MIUI crops adaptive icons
-  tightly). The same drawable is the `<monochrome>` themed icon, and
-  `ic_notification_alarm.xml` reuses the bell path. 
+- `settings/` — `AppSettings`, `SettingsRepository` (DataStore), `SettingsViewModel`, `SettingsScreen`, `SettingsComponents` (shared `SettingSlider`/`SettingSwitchRow`/`VibrationSwitchRow`/`GradualVolumeSwitchRow`/`SoundPickerRow`, reused by `AlarmEditScreen` for per-alarm overrides)
+- App icon (`res/drawable/ic_launcher_foreground.xml`, v1.2.0): the Wakku mark
+  from the Maxtasy design system (skill `maxtasy-design`, `assets/logos/wakku.svg`):
+  sky and indigo vibration arcs around a mint dot, drawn on the design
+  system's 48-unit grid and fitted into the 108dp canvas by the group's
+  `scaleX`/`scaleY` (1.35; the mark fits a circle of radius 22 units, so the
+  66dp safe zone allows up to 1.5). The same drawable is the `<monochrome>`
+  themed icon; `ic_notification_alarm.xml` redraws the arcs + dot in one
+  color. Not yet checked on-device next to the Expense Tracker icon.
 - `ui/theme/` — **dark-only** Material3 color scheme (v1.1.0), palette taken from the Expense Tracker web app's Tailwind `@theme` tokens (`#0b0e14` background, `#4f46e5` indigo accent, amber/red/green). Every role is set explicitly — a partially-filled scheme leaks Material3's baseline purple into unset roles (happened once in M3). `primary` is the lighter `#6366f1` (accent-hover), not `#4f46e5`, because `primary` is also TextButton text color and `#4f46e5` is only ~3:1 on the background; the exact accent is `primaryContainer` (FAB). Amber `tertiary` is used for warnings (battery banner). There's no `values-night`; `MainActivity` forces `SystemBarStyle.dark` so status-bar icons stay white in system light mode.
 
 `AlarmTiming` (in `scheduling/`) holds `AlarmScheduler`'s next-trigger-time
@@ -110,8 +111,12 @@ framework classes.
   deleting and one-time alarms firing all keep it correct. It also serves as
   the "alarm is set" indicator when the status-bar icon doesn't show (it did
   appear once an alarm was enabled after this change, on the POCO).
-  Known gap: a snooze pending across a reboot is rescheduled by
-  `BootReceiver` to the regular time, not the snooze time.
+  Each record is `"millis,kind,repeating"` (`TriggerKind`: NORMAL, SNOOZED,
+  SKIPPED). `AlarmScheduler.restore()` (used by `BootReceiver` and
+  `WakkuApplication.onCreate`) keeps a still-future SNOOZED/SKIPPED trigger
+  instead of recomputing the regular time, so snoozes and skips survive reboots
+  and app restarts. `schedule()` (edit-save, toggle-on, alarm fired) always
+  resets to the regular next occurrence.
 - **Snoozed alarms have a way into the challenge** (M9): while an alarm is
   snoozed, the "Next alarm" notification switches to "Alarm snoozed / Rings
   again at HH:mm" and gains a **Stop** action (only visible when the
@@ -289,3 +294,31 @@ picks this up next:
   missing, `assembleRelease` just produces an unsigned APK instead of
   failing. The keystore itself lives outside the repo, and the user created
   it (and its passwords). Never generate or handle it on their behalf.
+
+## v1.2.0 notes
+
+- **Strings live in `res/values/strings.xml`** (English) with
+  `values-de/strings.xml` (German). Nothing user-visible is hardcoded any
+  more; use `stringResource` in composables and `context.getString` elsewhere.
+  Lint fails the build on a missing translation. Day names still come from
+  `java.time` via `LocalConfiguration.current.locales[0]`. Instrumented tests
+  look strings up via `InstrumentationRegistry...targetContext.getString(...)`
+  (the test phone is German), never hardcoded English.
+- **"Rings in …" toast**: `AlarmScheduler.schedule()` now returns the trigger
+  time (null if the alarm is disabled). `AlarmEditViewModel.save { }` and
+  `AlarmListViewModel.setEnabled(..., onScheduled)` hand it to `MainActivity`,
+  which shows `Context.ringsInText()`. The edit screen only pops *after* the
+  save callback, because popping clears the ViewModel and could cancel the
+  save mid-flight. `AlarmTiming.durationUntil` rounds a partial minute up.
+- **Skip next**: `AlarmScheduler.skipNext()` schedules the occurrence after the
+  next one (`AlarmTiming.triggerAfterNextMillis`) as `TriggerKind.SKIPPED`. The
+  notification only offers it for repeating alarms in state NORMAL (not while
+  snoozed or already skipped, so a double tap can't skip two days). Its title
+  becomes "Next alarm (one skipped)". The skip is not shown on the alarm list.
+- **Gradual volume**: nullable `Alarm.gradualVolume` (null = global default,
+  same pattern as the other overrides) plus `AppSettings.gradualVolume`
+  (default off). `RingingService` ramps `MediaPlayer.setVolume` from 5% to
+  100% over 45 s (squared curve). It is a *MediaPlayer* volume, so it is
+  relative to the alarm stream volume. Room is now at **version 3** with a real
+  `MIGRATION_2_3` (`ALTER TABLE ... ADD COLUMN`); the destructive fallback would
+  have wiped users' alarms on update. Any future column needs its own migration.

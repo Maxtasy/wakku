@@ -20,6 +20,7 @@ class SettingsRepository(private val context: Context) {
         val SNOOZE_MINUTES = intPreferencesKey("snooze_minutes")
         val NUMBER_OF_SHAKES = intPreferencesKey("number_of_shakes")
         val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
+        val GRADUAL_VOLUME = booleanPreferencesKey("gradual_volume")
         val SOUND_URI = stringPreferencesKey("sound_uri")
     }
 
@@ -28,6 +29,7 @@ class SettingsRepository(private val context: Context) {
             snoozeMinutes = prefs[Keys.SNOOZE_MINUTES] ?: AppSettings.DEFAULT_SNOOZE_MINUTES,
             numberOfShakes = prefs[Keys.NUMBER_OF_SHAKES] ?: AppSettings.DEFAULT_NUMBER_OF_SHAKES,
             vibrationEnabled = prefs[Keys.VIBRATION_ENABLED] ?: true,
+            gradualVolume = prefs[Keys.GRADUAL_VOLUME] ?: false,
             soundUri = prefs[Keys.SOUND_URI],
         )
     }
@@ -45,6 +47,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setVibrationEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.VIBRATION_ENABLED] = enabled }
+    }
+
+    suspend fun setGradualVolume(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.GRADUAL_VOLUME] = enabled }
     }
 
     suspend fun setSoundUri(uri: String?) {

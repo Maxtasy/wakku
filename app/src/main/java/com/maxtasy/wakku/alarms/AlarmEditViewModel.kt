@@ -25,6 +25,7 @@ data class AlarmEditState(
     val snoozeMinutes: Int = AppSettings.DEFAULT_SNOOZE_MINUTES,
     val numberOfShakes: Int = AppSettings.DEFAULT_NUMBER_OF_SHAKES,
     val vibrationEnabled: Boolean = true,
+    val gradualVolume: Boolean = false,
     val soundUri: String? = null,
 )
 
@@ -49,11 +50,13 @@ class AlarmEditViewModel(
                 label = alarm?.label ?: "",
                 useCustomSettings = alarm != null && (
                     alarm.snoozeMinutes != null || alarm.numberOfShakes != null ||
-                        alarm.vibrationEnabled != null || alarm.soundUri != null
+                        alarm.vibrationEnabled != null || alarm.soundUri != null ||
+                        alarm.gradualVolume != null
                     ),
                 snoozeMinutes = alarm?.snoozeMinutes ?: defaults.snoozeMinutes,
                 numberOfShakes = alarm?.numberOfShakes ?: defaults.numberOfShakes,
                 vibrationEnabled = alarm?.vibrationEnabled ?: defaults.vibrationEnabled,
+                gradualVolume = alarm?.gradualVolume ?: defaults.gradualVolume,
                 soundUri = alarm?.soundUri ?: defaults.soundUri,
             )
         }
@@ -87,11 +90,20 @@ class AlarmEditViewModel(
         _state.value = _state.value.copy(vibrationEnabled = enabled)
     }
 
+    fun setGradualVolume(enabled: Boolean) {
+        _state.value = _state.value.copy(gradualVolume = enabled)
+    }
+
     fun setSoundUri(uri: String?) {
         _state.value = _state.value.copy(soundUri = uri)
     }
 
-    fun save() {
+    /**
+     * Saves and schedules the alarm, then calls [onSaved] with the time it
+     * will ring at. The caller should wait for [onSaved] before leaving the
+     * screen: popping it clears this ViewModel and would cancel the save midway.
+     */
+    fun save(onSaved: (triggerAtMillis: Long?) -> Unit) {
         val current = _state.value
         viewModelScope.launch {
             val savedId = alarmDao.upsert(
@@ -107,10 +119,11 @@ class AlarmEditViewModel(
                     snoozeMinutes = current.snoozeMinutes.takeIf { current.useCustomSettings },
                     numberOfShakes = current.numberOfShakes.takeIf { current.useCustomSettings },
                     vibrationEnabled = current.vibrationEnabled.takeIf { current.useCustomSettings },
+                    gradualVolume = current.gradualVolume.takeIf { current.useCustomSettings },
                     soundUri = current.soundUri.takeIf { current.useCustomSettings },
                 )
             )
-            alarmDao.getById(savedId)?.let { alarmScheduler.schedule(it) }
+            onSaved(alarmDao.getById(savedId)?.let { alarmScheduler.schedule(it) })
         }
     }
 
