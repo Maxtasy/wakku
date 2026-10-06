@@ -9,6 +9,15 @@ home, or just put the phone down), the alarm snoozes instead of turning off.
 
 Current version: **1.2.0** (see [CHANGELOG.md](CHANGELOG.md)).
 
+## Screenshots
+
+<p>
+  <img src="screenshots/1-alarm-list.png" width="200" alt="Alarm list">
+  <img src="screenshots/2-edit-alarm.png" width="200" alt="Editing an alarm">
+  <img src="screenshots/3-shake-to-stop.png" width="200" alt="Shake-to-stop challenge">
+  <img src="screenshots/4-settings.png" width="200" alt="Settings">
+</p>
+
 ## Features
 
 - **Alarms**: one-time or repeating on chosen weekdays, with an optional
