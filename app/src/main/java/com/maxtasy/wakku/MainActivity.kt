@@ -106,6 +106,14 @@ fun WakkuApp(modifier: Modifier = Modifier) {
         ActivityResultContracts.StartActivityForResult(),
     ) { isIgnoringBatteryOptimizations = context.isIgnoringBatteryOptimizations() }
 
+    // Without "display over other apps" Android shows a ringing alarm only as a
+    // heads-up notification while the phone is unlocked, not the full-screen view.
+    var canDrawOverlays by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var overlayWarningDismissed by remember { mutableStateOf(false) }
+    val overlayLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { canDrawOverlays = Settings.canDrawOverlays(context) }
+
     NavHost(navController = navController, startDestination = "alarms", modifier = modifier) {
         composable("alarms") {
             val viewModel: AlarmListViewModel = viewModel(
@@ -129,6 +137,16 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                     )
                 },
                 onDismissBatteryOptimizationWarning = { batteryWarningDismissed = true },
+                showOverlayWarning = !canDrawOverlays && !overlayWarningDismissed,
+                onFixOverlay = {
+                    overlayLauncher.launch(
+                        Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}"),
+                        ),
+                    )
+                },
+                onDismissOverlayWarning = { overlayWarningDismissed = true },
             )
         }
         composable("settings") {

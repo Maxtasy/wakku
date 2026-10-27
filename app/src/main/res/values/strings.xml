@@ -25,6 +25,8 @@
     <string name="battery_warning_title">Alarms may be unreliable</string>
     <string name="battery_warning_body">This device can kill Wakku in the background. Exempt it from battery optimization to keep alarms reliable.</string>
     <string name="battery_warning_fix">Fix it</string>
+    <string name="overlay_warning_title">Ringing screen may not show</string>
+    <string name="overlay_warning_body">Allow Wakku to display over other apps so the full-screen alarm screen opens even when the phone is unlocked.</string>
     <string name="dismiss">Dismiss</string>
 
     <!-- Rings-in message -->

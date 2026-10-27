@@ -15,6 +15,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import com.maxtasy.wakku.R
 import com.maxtasy.wakku.WakkuApplication
@@ -70,11 +71,15 @@ class RingingService : Service() {
             val vibrationEnabled = alarm?.vibrationEnabled ?: defaults.vibrationEnabled
             val soundUri = alarm?.soundUri ?: defaults.soundUri
             val gradualVolume = alarm?.gradualVolume ?: defaults.gradualVolume
+            // Before the notification: its full-screen intent can open the
+            // activity within milliseconds, and the activity closes itself when
+            // it sees no matching ringing alarm (that was the black lock screen).
+            RingingController.ringingAlarmId.value = alarmId
             startForeground(
                 NOTIFICATION_ID,
                 buildNotification(alarmId, hour, minute, label, numberOfShakes),
             )
-            RingingController.ringingAlarmId.value = alarmId
+            openRingingScreen(alarmId, hour, minute, label, numberOfShakes)
             startSound(soundUri, gradualVolume)
             if (vibrationEnabled) startVibration()
         }
@@ -84,6 +89,21 @@ class RingingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         stopRinging()
+    }
+
+    /**
+     * Opens the full-screen ringing view directly. With the phone unlocked,
+     * Android only turns the notification's full-screen intent into a
+     * heads-up; a background app may start an activity itself only with the
+     * "display over other apps" permission (see the banner on the alarm list).
+     */
+    private fun openRingingScreen(alarmId: Long, hour: Int, minute: Int, label: String, numberOfShakes: Int) {
+        if (!Settings.canDrawOverlays(this)) return
+        try {
+            startActivity(RingingActivity.intent(this, alarmId, hour, minute, label, numberOfShakes))
+        } catch (_: RuntimeException) {
+            // The notification's full-screen intent is still there as a fallback.
+        }
     }
 
     private fun buildNotification(
@@ -209,7 +229,7 @@ class RingingService : Service() {
         }
     }
 
-    /** The shake challenge was completed while snoozed: drop the snooze and fall back to the alarm's normal schedule. */
+    /** The shake challenge was completed: drop any snooze and fall back to the alarm's normal schedule (one-time alarms end up off). */
     private fun dismissSnooze(alarmId: Long) {
         if (alarmId == -1L) return
         scope.launch {

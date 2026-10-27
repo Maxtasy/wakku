@@ -25,6 +25,8 @@
     <string name="battery_warning_title">Wecker könnten unzuverlässig sein</string>
     <string name="battery_warning_body">Dieses Gerät kann Wakku im Hintergrund beenden. Nimm Wakku von der Akku-Optimierung aus, damit Wecker zuverlässig klingeln.</string>
     <string name="battery_warning_fix">Beheben</string>
+    <string name="overlay_warning_title">Wecker-Bildschirm wird eventuell nicht angezeigt</string>
+    <string name="overlay_warning_body">Erlaube Wakku, über anderen Apps eingeblendet zu werden, damit der Vollbild-Wecker auch bei entsperrtem Handy erscheint.</string>
     <string name="dismiss">Schließen</string>
 
     <!-- Rings-in message -->
