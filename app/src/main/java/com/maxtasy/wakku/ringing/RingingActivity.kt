@@ -144,8 +144,14 @@ class RingingActivity : ComponentActivity() {
         if (intent.getBooleanExtra(EXTRA_START_CHALLENGE, false)) startChallenge = true
     }
 
+    override fun onResume() {
+        super.onResume()
+        RingingController.screenVisible.value = true
+    }
+
     override fun onStop() {
         super.onStop()
+        RingingController.screenVisible.value = false
         // Walked away (back/home/task switch) mid-challenge without finishing
         // or explicitly bailing out: treat it the same as tapping Snooze.
         if (isChangingConfigurations) return
