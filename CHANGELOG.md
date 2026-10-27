@@ -7,6 +7,8 @@ every release, whatever kind of release it is.
 
 ## [Unreleased]
 
+## [1.3.0]
+
 ### Added
 - Full-screen ringing view while the phone is unlocked: with the "display over
   other apps" permission the ringing screen opens by itself and the ringing
