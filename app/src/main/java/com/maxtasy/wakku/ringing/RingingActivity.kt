@@ -122,7 +122,11 @@ class RingingActivity : ComponentActivity() {
                     },
                     onChallengeCompleted = {
                         shakeChallengeResolved = true
-                        if (dismissingSnooze) sendServiceAction(RingingService.ACTION_DISMISS_SNOOZE)
+                        // Always, not only when dismissing a snooze: if a stray
+                        // snooze got recorded mid-challenge (e.g. the activity was
+                        // stopped while the keyguard or screen changed), finishing
+                        // the challenge must still end the alarm for good.
+                        sendServiceAction(RingingService.ACTION_DISMISS_SNOOZE)
                         finish()
                     },
                     onChallengeAbandoned = {
@@ -140,8 +144,14 @@ class RingingActivity : ComponentActivity() {
         if (intent.getBooleanExtra(EXTRA_START_CHALLENGE, false)) startChallenge = true
     }
 
+    override fun onResume() {
+        super.onResume()
+        RingingController.screenVisible.value = true
+    }
+
     override fun onStop() {
         super.onStop()
+        RingingController.screenVisible.value = false
         // Walked away (back/home/task switch) mid-challenge without finishing
         // or explicitly bailing out: treat it the same as tapping Snooze.
         if (isChangingConfigurations) return

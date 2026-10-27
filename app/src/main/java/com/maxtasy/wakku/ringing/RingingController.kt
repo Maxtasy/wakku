@@ -9,4 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
  */
 object RingingController {
     val ringingAlarmId = MutableStateFlow<Long?>(null)
+
+    /** Whether a RingingActivity is on screen; RingingService waits on this after launching it directly. */
+    val screenVisible = MutableStateFlow(false)
 }

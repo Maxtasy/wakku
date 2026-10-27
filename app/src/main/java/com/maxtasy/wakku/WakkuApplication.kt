@@ -41,6 +41,18 @@ class WakkuApplication : Application() {
             enableVibration(false)
             setBypassDnd(true)
         }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        val quietChannel = NotificationChannel(
+            RingingService.QUIET_CHANNEL_ID,
+            getString(R.string.channel_alarms_quiet_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = getString(R.string.channel_alarms_quiet_description)
+            setSound(null, null)
+            enableVibration(false)
+        }
+        getSystemService(NotificationManager::class.java).apply {
+            createNotificationChannel(channel)
+            createNotificationChannel(quietChannel)
+        }
     }
 }

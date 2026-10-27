@@ -14,8 +14,9 @@ original pitch.
 ## Status
 
 M0–M9 complete (dogfooding finished; the app works as intended). Now on
-**v1.2.0** (semver, see `CHANGELOG.md`; `versionName`/`versionCode` in
-`app/build.gradle.kts`): "Rings in …" toast, German translation, snooze
+**v1.3.0** (semver, see `CHANGELOG.md`; `versionName`/`versionCode` in
+`app/build.gradle.kts`): the ringing screen opens full-screen by itself (see
+"v1.3.0 notes") and the shake challenge always ends the alarm. v1.2.0 brought the "Rings in …" toast, German translation, snooze
 surviving reboots, gradual volume, "Skip next" on the notification, and the
 new Wakku logo from the Maxtasy design system as the app icon (v1.1.0 brought
 the dark-only theme shared with the Expense Tracker app). Wear OS and a home-screen widget were considered
@@ -322,3 +323,32 @@ picks this up next:
   relative to the alarm stream volume. Room is now at **version 3** with a real
   `MIGRATION_2_3` (`ALTER TABLE ... ADD COLUMN`); the destructive fallback would
   have wiped users' alarms on update. Any future column needs its own migration.
+
+## v1.3.0 notes
+
+- **Full-screen ringing view**: with the "display over other apps" permission
+  (`SYSTEM_ALERT_WINDOW`, `Settings.canDrawOverlays`) `RingingService` starts
+  `RingingActivity` itself and posts the ringing notification on the quiet
+  `alarms_quiet` channel (no heads-up, no full-screen intent). It then waits
+  2 s for `RingingController.screenVisible`; if the screen never appears it
+  re-posts the loud `alarms` notification (full-screen intent + heads-up) and
+  sets `FullScreenStatus.blocked`. Without the permission the loud
+  notification is used from the start. A stock-Android background launch is
+  allowed by the overlay permission alone, but MIUI/HyperOS adds three
+  permissions of its own that no API can query (confirmed on the POCO F3):
+  "Anzeige auf dem Sperrbildschirm" (appop 10020), "Neue Fenster offen, wenn im
+  Hintergrund ausgeführt" (10021) and "Popup-Fenster anzeigen" (the overlay
+  permission). Because they can't be queried, success is detected by whether the
+  screen actually appeared (`FullScreenStatus`).
+- **Banner** on the alarm list (`needsAttention` = overlay missing or last
+  launch blocked): "Fix it" opens the overlay permission page first, then on
+  Xiaomi/Redmi/POCO MIUI's permission editor
+  (`miui.intent.action.APP_PERM_EDITOR`), else the app's settings. Tapping it
+  clears the blocked flag optimistically; a failing ring sets it again.
+- The ringing service now publishes `RingingController.ringingAlarmId` *before*
+  its notification: the activity closes itself when it sees no matching ringing
+  alarm, which could race and show a black screen.
+- **Finishing the shake challenge always sends `ACTION_DISMISS_SNOOZE`** (not
+  only when dismissing a snooze), so a stray snooze recorded mid-challenge can't
+  survive it: a one-time alarm ends up disabled, a repeating one back on its
+  normal schedule.

@@ -25,7 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -40,6 +42,8 @@ import com.maxtasy.wakku.alarms.AlarmEditViewModel
 import com.maxtasy.wakku.alarms.AlarmListScreen
 import com.maxtasy.wakku.alarms.AlarmListViewModel
 import com.maxtasy.wakku.data.AlarmDao
+import com.maxtasy.wakku.R
+import com.maxtasy.wakku.ringing.FullScreenStatus
 import com.maxtasy.wakku.scheduling.AlarmScheduler
 import com.maxtasy.wakku.scheduling.ringsInText
 import com.maxtasy.wakku.settings.SettingsRepository
@@ -106,6 +110,19 @@ fun WakkuApp(modifier: Modifier = Modifier) {
         ActivityResultContracts.StartActivityForResult(),
     ) { isIgnoringBatteryOptimizations = context.isIgnoringBatteryOptimizations() }
 
+    // Without permission to open itself over other apps, the ringing screen only
+    // shows as a heads-up notification while the phone is unlocked (and on some
+    // OEMs not on the lock screen either). Re-checked whenever the app comes back
+    // from the settings page the banner sends the user to.
+    var fullScreenNeedsAttention by remember { mutableStateOf(FullScreenStatus.needsAttention(context)) }
+    var overlayMissing by remember { mutableStateOf(FullScreenStatus.isOverlayMissing(context)) }
+    var overlayWarningDismissed by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        fullScreenNeedsAttention = FullScreenStatus.needsAttention(context)
+        overlayMissing = FullScreenStatus.isOverlayMissing(context)
+        onPauseOrDispose { }
+    }
+
     NavHost(navController = navController, startDestination = "alarms", modifier = modifier) {
         composable("alarms") {
             val viewModel: AlarmListViewModel = viewModel(
@@ -129,6 +146,16 @@ fun WakkuApp(modifier: Modifier = Modifier) {
                     )
                 },
                 onDismissBatteryOptimizationWarning = { batteryWarningDismissed = true },
+                showOverlayWarning = fullScreenNeedsAttention && !overlayWarningDismissed,
+                overlayWarningBody = stringResource(
+                    when {
+                        overlayMissing -> R.string.overlay_missing_body
+                        FullScreenStatus.isXiaomi -> R.string.overlay_blocked_miui_body
+                        else -> R.string.overlay_warning_body
+                    },
+                ),
+                onFixOverlay = { FullScreenStatus.openSettings(context) },
+                onDismissOverlayWarning = { overlayWarningDismissed = true },
             )
         }
         composable("settings") {

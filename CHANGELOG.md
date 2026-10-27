@@ -7,6 +7,25 @@ every release, whatever kind of release it is.
 
 ## [Unreleased]
 
+## [1.3.0]
+
+### Added
+- Full-screen ringing view while the phone is unlocked: with the "display over
+  other apps" permission the ringing screen opens by itself and the ringing
+  notification stays quiet (no heads-up). If the screen can't open, Wakku falls
+  back to the heads-up notification. The banner on the alarm list then sends
+  you to the right settings page: MIUI's own permission editor on Xiaomi
+  phones, the overlay permission page elsewhere. While "display over other
+  apps" is missing, the banner opens that page first.
+
+### Fixed
+- Finishing the shake challenge now always ends the alarm. Before, a one-time
+  alarm could stay in the snoozed state after being snoozed once and stopped
+  again with the phone locked.
+- The ringing screen could close itself right after opening (black lock
+  screen) because the service published the ringing alarm after its
+  notification.
+
 ## [1.2.0]
 
 ### Added

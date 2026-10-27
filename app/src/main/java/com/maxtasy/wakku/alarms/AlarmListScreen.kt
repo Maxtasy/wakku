@@ -54,6 +54,10 @@ fun AlarmListScreen(
     showBatteryOptimizationWarning: Boolean = false,
     onFixBatteryOptimization: () -> Unit = {},
     onDismissBatteryOptimizationWarning: () -> Unit = {},
+    showOverlayWarning: Boolean = false,
+    overlayWarningBody: String = "",
+    onFixOverlay: () -> Unit = {},
+    onDismissOverlayWarning: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -74,9 +78,22 @@ fun AlarmListScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (showBatteryOptimizationWarning) {
-                BatteryOptimizationBanner(
+                WarningBanner(
+                    title = stringResource(R.string.battery_warning_title),
+                    body = stringResource(R.string.battery_warning_body),
+                    fixLabel = stringResource(R.string.battery_warning_fix),
                     onFix = onFixBatteryOptimization,
                     onDismiss = onDismissBatteryOptimizationWarning,
+                    modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 0.dp),
+                )
+            }
+            if (showOverlayWarning) {
+                WarningBanner(
+                    title = stringResource(R.string.overlay_warning_title),
+                    body = overlayWarningBody,
+                    fixLabel = stringResource(R.string.battery_warning_fix),
+                    onFix = onFixOverlay,
+                    onDismiss = onDismissOverlayWarning,
                     modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 0.dp),
                 )
             }
@@ -107,7 +124,14 @@ fun AlarmListScreen(
 }
 
 @Composable
-private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun WarningBanner(
+    title: String,
+    body: String,
+    fixLabel: String,
+    onFix: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -120,19 +144,16 @@ private fun BatteryOptimizationBanner(onFix: () -> Unit, onDismiss: () -> Unit, 
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.battery_warning_title), style = MaterialTheme.typography.titleSmall)
+                Text(title, style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.battery_warning_body),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Text(body, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 TextButton(
                     onClick = onFix,
                     modifier = Modifier.align(Alignment.Start),
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary),
                 ) {
-                    Text(stringResource(R.string.battery_warning_fix))
+                    Text(fixLabel)
                 }
             }
             IconButton(onClick = onDismiss) {

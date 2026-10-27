@@ -1,6 +1,7 @@
 package com.maxtasy.wakku.ringing
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -15,6 +16,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import com.maxtasy.wakku.R
 import com.maxtasy.wakku.WakkuApplication
@@ -26,7 +28,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Rings an alarm: loops the current alarm sound + vibration and shows a full-screen notification. */
 class RingingService : Service() {
@@ -70,13 +74,20 @@ class RingingService : Service() {
             val vibrationEnabled = alarm?.vibrationEnabled ?: defaults.vibrationEnabled
             val soundUri = alarm?.soundUri ?: defaults.soundUri
             val gradualVolume = alarm?.gradualVolume ?: defaults.gradualVolume
+            // Before the notification: its full-screen intent can open the
+            // activity within milliseconds, and the activity closes itself when
+            // it sees no matching ringing alarm (that was the black lock screen).
+            RingingController.ringingAlarmId.value = alarmId
+            // With the overlay permission the screen is opened right here, so the
+            // notification can stay quiet; it turns loud only if that fails.
+            val openDirectly = Settings.canDrawOverlays(this@RingingService)
             startForeground(
                 NOTIFICATION_ID,
-                buildNotification(alarmId, hour, minute, label, numberOfShakes),
+                buildNotification(alarmId, hour, minute, label, numberOfShakes, loud = !openDirectly),
             )
-            RingingController.ringingAlarmId.value = alarmId
             startSound(soundUri, gradualVolume)
             if (vibrationEnabled) startVibration()
+            if (openDirectly) openRingingScreen(alarmId, hour, minute, label, numberOfShakes)
         }
         return START_STICKY
     }
@@ -86,12 +97,42 @@ class RingingService : Service() {
         stopRinging()
     }
 
+    /**
+     * Opens the full-screen ringing view directly. With the phone unlocked,
+     * Android only turns a notification's full-screen intent into a heads-up;
+     * a background app may start an activity itself only with the "display
+     * over other apps" permission (see the banner on the alarm list), and some
+     * OEMs add permissions of their own. Whether it worked can only be seen by
+     * the screen actually appearing, so wait for it and otherwise fall back to
+     * the loud notification, remembering the failure for the banner.
+     */
+    private suspend fun openRingingScreen(alarmId: Long, hour: Int, minute: Int, label: String, numberOfShakes: Int) {
+        RingingController.screenVisible.value = false
+        try {
+            startActivity(RingingActivity.intent(this, alarmId, hour, minute, label, numberOfShakes))
+        } catch (_: RuntimeException) {
+            // Handled like any other failure to appear, below.
+        }
+        val shown = withTimeoutOrNull(SCREEN_TIMEOUT_MILLIS) {
+            RingingController.screenVisible.first { it }
+        } != null
+        FullScreenStatus.setBlocked(this, !shown)
+        // Only while still ringing: the user may have acted on the quiet notification meanwhile.
+        if (!shown && RingingController.ringingAlarmId.value == alarmId) {
+            getSystemService(NotificationManager::class.java).notify(
+                NOTIFICATION_ID,
+                buildNotification(alarmId, hour, minute, label, numberOfShakes, loud = true),
+            )
+        }
+    }
+
     private fun buildNotification(
         alarmId: Long,
         hour: Int,
         minute: Int,
         label: String,
         numberOfShakes: Int,
+        loud: Boolean,
     ): Notification {
         val fullScreenIntent = PendingIntent.getActivity(
             this,
@@ -117,15 +158,15 @@ class RingingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, if (loud) CHANNEL_ID else QUIET_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_alarm)
             .setContentTitle("%02d:%02d".format(hour, minute))
             .setContentText(label.ifBlank { getString(R.string.default_alarm_label) })
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(if (loud) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setContentIntent(fullScreenIntent)
-            .setFullScreenIntent(fullScreenIntent, true)
+            .apply { if (loud) setFullScreenIntent(fullScreenIntent, true) }
             .addAction(0, getString(R.string.snooze), snoozeIntent)
             .addAction(0, getString(R.string.stop), stopIntent)
             .build()
@@ -209,7 +250,7 @@ class RingingService : Service() {
         }
     }
 
-    /** The shake challenge was completed while snoozed: drop the snooze and fall back to the alarm's normal schedule. */
+    /** The shake challenge was completed: drop any snooze and fall back to the alarm's normal schedule (one-time alarms end up off). */
     private fun dismissSnooze(alarmId: Long) {
         if (alarmId == -1L) return
         scope.launch {
@@ -237,6 +278,10 @@ class RingingService : Service() {
         const val EXTRA_NUMBER_OF_SHAKES = "extra_number_of_shakes"
 
         const val CHANNEL_ID = "alarms"
+
+        /** Same notification without the heads-up, for when the ringing screen opens by itself. */
+        const val QUIET_CHANNEL_ID = "alarms_quiet"
+        private const val SCREEN_TIMEOUT_MILLIS = 2_000L
         private const val NOTIFICATION_ID = 1
         private const val REQUEST_CODE_SNOOZE_OFFSET = 1_000_000
         private const val REQUEST_CODE_STOP_OFFSET = 3_000_000

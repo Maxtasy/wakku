@@ -25,6 +25,10 @@
     <string name="battery_warning_title">Wecker könnten unzuverlässig sein</string>
     <string name="battery_warning_body">Dieses Gerät kann Wakku im Hintergrund beenden. Nimm Wakku von der Akku-Optimierung aus, damit Wecker zuverlässig klingeln.</string>
     <string name="battery_warning_fix">Beheben</string>
+    <string name="overlay_warning_title">Wecker-Bildschirm wird eventuell nicht angezeigt</string>
+    <string name="overlay_warning_body">Wakku konnte den Wecker-Bildschirm nicht öffnen. Erlaube in den Berechtigungen von Wakku Popup-Fenster und die Anzeige auf dem Sperrbildschirm.</string>
+    <string name="overlay_missing_body">Erlaube „Über anderen Apps einblenden“ für Wakku, damit sich der Vollbild-Wecker von selbst öffnet statt nur als Popup-Benachrichtigung.</string>
+    <string name="overlay_blocked_miui_body">Wakku konnte den Wecker-Bildschirm nicht öffnen. Erlaube in den Berechtigungen von Wakku „Neue Fenster offen, wenn im Hintergrund ausgeführt“, „Popup-Fenster anzeigen“ und „Anzeige auf dem Sperrbildschirm“.</string>
     <string name="dismiss">Schließen</string>
 
     <!-- Rings-in message -->
@@ -57,6 +61,8 @@
     <!-- Notifications -->
     <string name="channel_alarms_name">Wecker</string>
     <string name="channel_alarms_description">Wird angezeigt, während ein Wecker klingelt</string>
+    <string name="channel_alarms_quiet_name">Klingelnder Wecker (leise)</string>
+    <string name="channel_alarms_quiet_description">Wird angezeigt, während ein Wecker klingelt und sein Bildschirm von selbst aufgeht</string>
     <string name="channel_next_alarm_name">Nächster Wecker</string>
     <string name="channel_next_alarm_description">Zeigt an, wann dein nächster Wecker klingelt</string>
     <string name="notification_next_alarm">Nächster Wecker</string>
