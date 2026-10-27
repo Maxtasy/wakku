@@ -13,7 +13,8 @@ every release, whatever kind of release it is.
   notification stays quiet (no heads-up). If the screen can't open, Wakku falls
   back to the heads-up notification. The banner on the alarm list then sends
   you to the right settings page: MIUI's own permission editor on Xiaomi
-  phones, the overlay permission page elsewhere.
+  phones, the overlay permission page elsewhere. While "display over other
+  apps" is missing, the banner opens that page first.
 
 ### Fixed
 - Finishing the shake challenge now always ends the alarm. Before, a one-time

@@ -55,6 +55,7 @@ fun AlarmListScreen(
     onFixBatteryOptimization: () -> Unit = {},
     onDismissBatteryOptimizationWarning: () -> Unit = {},
     showOverlayWarning: Boolean = false,
+    overlayWarningBody: String = "",
     onFixOverlay: () -> Unit = {},
     onDismissOverlayWarning: () -> Unit = {},
 ) {
@@ -89,7 +90,7 @@ fun AlarmListScreen(
             if (showOverlayWarning) {
                 WarningBanner(
                     title = stringResource(R.string.overlay_warning_title),
-                    body = stringResource(R.string.overlay_warning_body),
+                    body = overlayWarningBody,
                     fixLabel = stringResource(R.string.battery_warning_fix),
                     onFix = onFixOverlay,
                     onDismiss = onDismissOverlayWarning,

@@ -26,7 +26,9 @@
     <string name="battery_warning_body">Dieses Gerät kann Wakku im Hintergrund beenden. Nimm Wakku von der Akku-Optimierung aus, damit Wecker zuverlässig klingeln.</string>
     <string name="battery_warning_fix">Beheben</string>
     <string name="overlay_warning_title">Wecker-Bildschirm wird eventuell nicht angezeigt</string>
-    <string name="overlay_warning_body">Erlaube Wakku, sich über anderen Apps (und auf dem Sperrbildschirm) zu öffnen, damit der Vollbild-Wecker statt nur einer Benachrichtigung erscheint.</string>
+    <string name="overlay_warning_body">Wakku konnte den Wecker-Bildschirm nicht öffnen. Erlaube in den Berechtigungen von Wakku Popup-Fenster und die Anzeige auf dem Sperrbildschirm.</string>
+    <string name="overlay_missing_body">Erlaube „Über anderen Apps einblenden“ für Wakku, damit sich der Vollbild-Wecker von selbst öffnet statt nur als Popup-Benachrichtigung.</string>
+    <string name="overlay_blocked_miui_body">Wakku konnte den Wecker-Bildschirm nicht öffnen. Erlaube in den Berechtigungen von Wakku „Neue Fenster offen, wenn im Hintergrund ausgeführt“, „Popup-Fenster anzeigen“ und „Anzeige auf dem Sperrbildschirm“.</string>
     <string name="dismiss">Schließen</string>
 
     <!-- Rings-in message -->

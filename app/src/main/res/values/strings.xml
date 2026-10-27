@@ -26,7 +26,9 @@
     <string name="battery_warning_body">This device can kill Wakku in the background. Exempt it from battery optimization to keep alarms reliable.</string>
     <string name="battery_warning_fix">Fix it</string>
     <string name="overlay_warning_title">Ringing screen may not show</string>
-    <string name="overlay_warning_body">Allow Wakku to open over other apps (and on the lock screen) so the full-screen alarm appears instead of just a notification.</string>
+    <string name="overlay_warning_body">Wakku could not open the alarm screen. In the Wakku permissions, allow pop-up windows and showing on the lock screen.</string>
+    <string name="overlay_missing_body">Allow \"Display over other apps\" for Wakku so the full-screen alarm opens by itself instead of just a pop-up notification.</string>
+    <string name="overlay_blocked_miui_body">Wakku could not open the alarm screen. In the Wakku permissions, allow opening new windows while running in the background, showing pop-up windows and showing on the lock screen.</string>
     <string name="dismiss">Dismiss</string>
 
     <!-- Rings-in message -->
